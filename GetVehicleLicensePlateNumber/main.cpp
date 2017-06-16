@@ -1,5 +1,5 @@
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 
 //使用C++标准库命名空间
@@ -8,6 +8,17 @@ using namespace std;
 //使用OpenCV库命名空间
 using namespace cv;
 
+const float TemplateWidth = 580;
+const float TemplateHeight = 387;
+const float TemplateTitleWidth = 340;
+const float TemplateTitleHeight = 40;
+const float TemplateTitleCenterX = 284;
+const float TemplateTitleCenterY = 46;
+
+const float TemplatePlateWidth = 83;
+const float TemplatePlateHeight = 20;
+const float TemplatePlateCenterX = 151;
+const float TemplatePlateCenterY = 86;
 
 int main(int ArgumentCount, char** ArgumentVector)
 {
@@ -191,9 +202,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 	//对灰阶图像的边缘进行水平方向的膨胀
 	//构造膨胀操作的结构元
+	int DilateElementWidth = 11;
 	Mat DilateElement = Mat(
 		1,//第一维（Y轴尺寸）
-		11,//第二维（X轴尺寸）
+		DilateElementWidth,//第二维（X轴尺寸）
 		CV_8U,//矩阵类型：8位无符号整数
 		cvScalar(1)//填充的数值，全1
 	);
@@ -203,7 +215,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		GrayImageEdge,//输入矩阵
 		DilatedGrayImageEdge,//输出矩阵
 		DilateElement,//膨胀结构元
-		Point(4, 0), //膨胀元锚点
+		Point(DilateElementWidth/2-1, 0), //膨胀元锚点
 		1 //进行膨胀的次数
 	);
 	//显示膨胀后的二值图像
@@ -216,60 +228,164 @@ int main(int ArgumentCount, char** ArgumentVector)
 	//等待键盘响应，参数0表示等待时间为无限长
 	waitKey(0);
 
-
+	//对水平膨胀后的图像进行轮廓提取
 	vector<vector<Point> > AllContour;
 	vector<Vec4i> ContourHierarchy;
-	//Extract the contours so that
-
-	vector<vector<Point> > contours;
-	findContours(DilatedGrayImageEdge, AllContour, ContourHierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-
+	findContours(DilatedGrayImageEdge,//输入图像矩阵
+		AllContour, //输出轮廓向量
+		ContourHierarchy,//输出轮廓等级 
+		RETR_EXTERNAL,//只提取外部轮廓（忽略其中包含的内部轮廓） 
+		CHAIN_APPROX_SIMPLE//轮廓的近似办法，在此选择CHAIN_APPROX_SIMPLE，它压缩水平方向，垂直方向，对角线
+						   //方向的元素，只保留该方向的终点坐标，例如一个矩形轮廓只需4个点来保存轮廓信息
+		);
+	//逐个分析提取到的轮廓
 	for (size_t iContour = 0; iContour < AllContour.size(); iContour++)
 	{
-		//得到这个连通区域的外接矩形
-
+		//获取轮廓的最小外接矩形（可旋转）
 		RotatedRect  ContourRect = minAreaRect(AllContour[iContour]);
 
+		//获取外接矩阵的高度、宽度、旋转角、面积和中心点位置
 		float ContourRectHeight = ContourRect.size.height;
-		float ContourRectWidth = ContourRect.size.width;
+		//注意：因为前面做了水平方向的膨胀操作，所以对这里宽度减去了一个膨胀元的宽度
+		float ContourRectWidth = ContourRect.size.width- DilateElementWidth;
 		float ContourRectRotateAngle = ContourRect.angle;
-		float ContourRectArea = ContourRect.size.area;
+		float ContourRectArea = ContourRect.size.area();
 		float ContourRectCenterX = ContourRect.center.x;
 		float ContourRectCenterY = ContourRect.center.y;
 
+		//计算模板的宽高比和面积
+		const float TemplateRatio = TemplateWidth/TemplateHeight;
+		const float TemplateArea = TemplateWidth*TemplateHeight;
+
+		//计算模板的标题的宽高比和面积
+		const float TemplateTitleRatio = TemplateTitleWidth/TemplateTitleHeight;
+		const float TemplateTitleArea = TemplateTitleWidth*TemplateTitleHeight;
+
+		//计算输入图像的宽、高、面积和宽高比
+		const float InputImageWidth = RawImageMat.cols;
+		const float InputImageHeight = RawImageMat.rows;
+		const float InputImageArea = InputImageWidth * InputImageHeight;
+		const float InputImageRatio = InputImageWidth / InputImageHeight;
+		
+		//按模板宽高比进行裁切之后的输入图像的面积
+		float CroppedInputImageArea;
+
+		//记录是否找到标题行的标志变量
 		bool FlagFoundTitle = false;
 
-		//如果高度不足，或者长宽比太小，认为是无效数据，否则把矩形画到原图上
+		//借助模板估计标题行中心点在输入图像中的位置
+		float EstimatedTitleCenterX,EstimatedTitleCenterY;
 
-		if (
-			(fabs(ContourRectHeight / ContourRectWidth - aaa) / aaa <= 0.05 && fabs(ContourRectRotateAngle <= -85)) ||
-			(fabs(ContourRectWidth / ContourRectHeight - aaa) / aaa <= 0.05 && fabs(ContourRectRotateAngle >= -5)) &&
-			(fabs(ContourRectArea / (RawImageMat.rows*RawImageMat.cols) - bbb) / bbb <= 0.05*0.05) &&
-			(fabs(ContourRectCenterX - ccc) / ccc <= 0.05) &&
-			(fabs(ContourRectCenterY - ddd) / ddd <= 0.05)
-			)
+
+		//如果输入图像宽高比比模板图像更大（即更矮胖）
+		if (InputImageRatio >= TemplateRatio  )
 		{
-			FlagFoundTitle = true;
-			if (ContourRectRotateAngle <= -85)
-			{
-				ContourRectRotateAngle = ContourRectRotateAngle + 90;
-			}
-			else
-			{
-				ContourRectRotateAngle = fabs( ContourRectRotateAngle);
-			}
-		
+			//计算裁切之后的输入图像的面积
+			CroppedInputImageArea = InputImageHeight * TemplateRatio * InputImageHeight;
+			//则忽略左右两侧多余的部分（中心点的X坐标需要往右移）
+			EstimatedTitleCenterX = (InputImageWidth - InputImageHeight * TemplateRatio)/2.0 +
+				TemplateTitleCenterX /TemplateWidth *  InputImageWidth;
+			EstimatedTitleCenterY = TemplateTitleCenterY /TemplateHeight *  InputImageHeight;
+		}
+		//否则输入图像宽高比比模板图像更小（即更高瘦）
+		else
+		{
+			//计算裁切之后的输入图像的面积
+			CroppedInputImageArea = InputImageWidth * InputImageWidth /TemplateRatio;
+			//忽略上下两侧多余的部分（中心点的Y坐标需要往下移）
+			EstimatedTitleCenterX = TemplateTitleCenterX /TemplateWidth *  InputImageWidth;
+			EstimatedTitleCenterY = (InputImageHeight - InputImageWidth /TemplateRatio)/2.0 +
+				(TemplateTitleCenterY /TemplateHeight) *  InputImageHeight;	
+		}
 
-			EstimatedPlateCenterX = ContourRectCenterX - eee * RawImageMat.rows * sin(ContourRectRotateAngle/180*pi);
-			EstimatedPlateCenterY = ContourRectCenterY + eee * RawImageMat.cols * cos(ContourRectRotateAngle/180*pi);
+		//边长误差限制
+		float LengthErrorLimit = 0.05;
+		//角度误差限制
+		float AngleErrorLimit = 5;
+
+		//对提取到的轮廓进行筛选
+		if (
+			//如果轮廓外接矩形的宽高比和模板相差比例不超过LengthErrorLimit，水平倾斜不超过AngleErrorLimit度（顺时针为正，旋转角度为-90+AngleErrorLimit～-90度，此时竖边被识别为宽）
+			(fabs(ContourRectHeight / ContourRectWidth - TemplateTitleRatio ) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
+			//或轮廓外接矩形的宽高比和模板相差比例不超过LengthErrorLimit，水平倾斜不超过AngleErrorLimit度（逆时针为负，旋转角度为-0～-1*AngleErrorLimit度，此时横边被识别为宽）
+			(fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
+			//且轮廓面积占裁切后输入图片面积的比例与模板相差不超过(2+LengthErrorLimit)*LengthErrorLimit
+			(fabs(ContourRectArea / CroppedInputImageArea - TemplateTitleArea/TemplateArea) / TemplateTitleArea/TemplateArea <= (2+LengthErrorLimit)*LengthErrorLimit &&
+			//且轮廓中心与根据模板估计出来的点在X轴和Y轴方向上的误差比例均不超过LengthErrorLimit
+			(fabs(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterY <= LengthErrorLimit) &&
+			(fabs(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit)
+			)//满足上述条件我们便将此轮廓当作标题行所在的位置
+		{
+			//将FlagFoundTitle置true表示我们已经找到了标题行对应的轮廓
+			FlagFoundTitle = true;
+			//在原始图像上绘制出这一轮廓
+			drawContours (RawImageMat,//绘制对象
+				AllContour,//轮廓点数组
+				iContour,//绘制轮廓的索引/序号
+				Scalar(255,0,0),//绘制的线的颜色：蓝色
+				5,//绘制的线宽
+				CV_AA,//线型：抗混叠
+				ContourHierarchy,//轮廓的等级
+				0,//只绘制当前级别的轮廓
+				Point(0,0)//轮廓在水平和垂直方向的偏置
+				);
+			//分水平方向相对模板顺时针倾斜和逆时针倾斜两种情况估计车牌号中心点坐标
+
+			float InputImageOffsetX =  (TemplateTitleCenterX-TemplatePlateCenterX)/TemplateTitleWidth  * ContourRectWidth
+			float InputImageOffsetY = 
+			//顺时针倾斜情况
+			if (ContourRectRotateAngle <= -90+AngleErrorLimit)
+			{
+				//从标题行中心水平和垂直方向移动至估计的车牌号对应的中心点
+				EstimatedPlateCenterX = ContourRectCenterX -
+					TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * cos(-1.0*ContourRectRotateAngle/180.0*pi);
+			    EstimatedPlateCenterY = ContourRectCenterY + 
+					TemplateOffsetX/TemplateTitleHeight * ContourRectHeight * sin(-1.0*ContourRectRotateAngle/180.0*pi);
+			}
+			else if  (ContourRectRotateAngle >= -1*AngleErrorLimit)
+			{
+				EstimatedPlateCenterX = ContourRectCenterX +
+					TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * sin(-1.0*ContourRectRotateAngle/180.0*pi);
+				EstimatedPlateCenterY = ContourRectCenterY + 
+					TemplateOffsetY/TemplateTitleHeight * ContourRectHeight * cos(-1.0*ContourRectRotateAngle/180.0*pi);
+			}
 
 		}
 
-		for
-		approxPolyDP(Mat(AllContour[k]), contours[k], 3, true);
+		if (FlagFoundTitle == true)
+		{
+			for (size_t iContour = 0; iContour < AllContour.size(); iContour++)
+			{
+				RotatedRect  ContourRect = minAreaRect(AllContour[iContour]);
 
-	}
+				if (
+					(fabs(PlateRectHeight / PlateRectWidth - TemplatePlateRatio ) / TemplatePlateRatio <= 0.05 && PlateRectRotateAngle <= -85) ||
+					(fabs(PlateRectWidth / PlateRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= 0.05 && PlateRectRotateAngle >= -5) &&
+					(fabs(PlateRectArea / (DetectedImageWidth*DetectedImageHeight) - TemplatePlateArea) / TemplatePlateArea <= 0.05*0.05) &&
+					(fabs(PlateRectCenterX - EstimatedPlateCenterX) / EstimatedPlateCenterY <= 0.05) &&
+					(fabs(PlateRectCenterY - EstimatedPlateCenterY) / EstimatedPlateCenterY <= 0.05)
+					)
+				{
+					drawContours (RawImageMat,//绘制对象
+						AllContour,//轮廓点数组
+						iContour,//绘制轮廓的索引/序号
+						Scalar(0,0,255),//绘制的线的颜色
+						5,//绘制的线宽
+						CV_AA,//线型：抗混叠
+						ContourHierarchy,//轮廓的等级
+						0,//只绘制当前级别的轮廓
+						Point(0,0)//轮廓在水平和垂直方向的偏置
+						);
+					imshow(WindowName,RawImageMat);
+				}
+			}
+
+		}
+
+	waitKey(0);
 
 	//返回0并正常退出程序
 	return 0;
+
 }
+
