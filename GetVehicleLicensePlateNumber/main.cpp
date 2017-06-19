@@ -1,11 +1,12 @@
+ï»¿#include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
-
-//Ê¹ÓÃC++±ê×¼¿âÃüÃû¿Õ¼ä
+#include <stdio.h>
+//ä½¿ç”¨C++æ ‡å‡†åº“å‘½åç©ºé—´
 using namespace std;
 
-//Ê¹ÓÃOpenCV¿âÃüÃû¿Õ¼ä
+//ä½¿ç”¨OpenCVåº“å‘½åç©ºé—´
 using namespace cv;
 
 const float TemplateWidth = 580;
@@ -24,368 +25,537 @@ int main(int ArgumentCount, char** ArgumentVector)
 {
 
 
-	//¼ì²éÃüÁîĞĞËù´ø²ÎÊıÊıÄ¿ÊÇ·ñÕıÈ·£¬Èç¹û²»ÕıÈ·ÔòÏÔÊ¾ÓÃ·¨ËµÃ÷²¢ÍË³ö³ÌĞò
+	//æ£€æŸ¥å‘½ä»¤è¡Œæ‰€å¸¦å‚æ•°æ•°ç›®æ˜¯å¦æ­£ç¡®ï¼Œå¦‚æœä¸æ­£ç¡®åˆ™æ˜¾ç¤ºç”¨æ³•è¯´æ˜å¹¶é€€å‡ºç¨‹åº
 	if (ArgumentCount != 2)
 	{
-		//ÏÔÊ¾³ÌĞòÓÃ·¨ËµÃ÷
+		//æ˜¾ç¤ºç¨‹åºç”¨æ³•è¯´æ˜
 		cout << " Usage:  " << ArgumentVector[0] << " ImageToLoadAndDisplay" << endl;
-		//·µ»Ø´íÎóÂë²¢ÍË³ö³ÌĞò
+		//è¿”å›é”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 		return -1;
 	}
 
-	//ĞÂ½¨¾ØÕóRawImageMatÓÃÓÚ´æ´¢Ô­Ê¼Í¼Æ¬Êı¾İ
+	//æ–°å»ºçŸ©é˜µRawImageMatç”¨äºå­˜å‚¨åŸå§‹å›¾ç‰‡æ•°æ®
 	Mat RawImageMat;
 
-	//¸ù¾İµÚÒ»¸ö²ÎÊıµÄÎÄ¼şÂ·¾¶½øĞĞÍ¼Æ¬¶ÁÈ¡
+	//æ ¹æ®ç¬¬ä¸€ä¸ªå‚æ•°çš„æ–‡ä»¶è·¯å¾„è¿›è¡Œå›¾ç‰‡è¯»å–
 	RawImageMat = imread(
-		ArgumentVector[1],//ÊäÈëÍ¼Æ¬Â·¾¶
-		CV_LOAD_IMAGE_UNCHANGED//ÒÔ²»ĞŞ¸ÄÍ¨µÀÀàĞÍµÄ·½Ê½¶ÁÈ¡Í¼Æ¬
-	);
+		ArgumentVector[1],//è¾“å…¥å›¾ç‰‡è·¯å¾„
+		CV_LOAD_IMAGE_UNCHANGED//ä»¥ä¸ä¿®æ”¹é€šé“ç±»å‹çš„æ–¹å¼è¯»å–å›¾ç‰‡
+		);
 
-	//¼ì²é¶ÁÈëµÄMatÊÇ·ñ°üº¬Í¼ÏñÊı¾İ
+	//æ£€æŸ¥è¯»å…¥çš„Matæ˜¯å¦åŒ…å«å›¾åƒæ•°æ®
 	if (!RawImageMat.data)
 	{
-		//ÏÔÊ¾Í¼Æ¬¶ÁÈ¡Ê§°ÜÌáÊ¾ĞÅÏ¢
+		//æ˜¾ç¤ºå›¾ç‰‡è¯»å–å¤±è´¥æç¤ºä¿¡æ¯
 		cout << " Error:  Can't read image data from" << ArgumentVector[1] << endl;
-		//·µ»Ø´íÎóÂë²¢ÍË³ö³ÌĞò
+		//è¿”å›é”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 		return -1;
 	}
+
+
+	//è®¡ç®—è¾“å…¥å›¾åƒçš„å®½ã€é«˜ã€é¢ç§¯å’Œå®½é«˜æ¯”
+	const double InputImageWidth = RawImageMat.cols;
+	const double InputImageHeight = RawImageMat.rows;
+	const double InputImageArea = InputImageWidth * InputImageHeight;
+	const double InputImageRatio = InputImageWidth / InputImageHeight;
+
+	//è®¡ç®—æ¨¡æ¿çš„å®½é«˜æ¯”å’Œé¢ç§¯
+	const float TemplateRatio = TemplateWidth/TemplateHeight;
+	const float TemplateArea = TemplateWidth*TemplateHeight;
+
+	//è®¡ç®—æ¨¡æ¿çš„æ ‡é¢˜çš„å®½é«˜æ¯”å’Œé¢ç§¯
+	const float TemplateTitleRatio = TemplateTitleWidth/TemplateTitleHeight;
+	const float TemplateTitleArea = TemplateTitleWidth*TemplateTitleHeight;
+
+	//è®¡ç®—æ¨¡æ¿çš„è½¦ç‰ŒåŒºåŸŸçš„å®½é«˜æ¯”å’Œé¢ç§¯
+	const float TemplatePlateRatio = TemplatePlateWidth/TemplatePlateHeight;
+	const float TemplatePlateArea = TemplatePlateWidth*TemplatePlateHeight;
+
+
+	////æŒ‰æ¨¡æ¿å®½é«˜æ¯”è¿›è¡Œè£åˆ‡ä¹‹åçš„è¾“å…¥å›¾åƒçš„å®½ã€é«˜å’Œé¢ç§¯
+
+	Rect CropRect;
+	//å¦‚æœè¾“å…¥å›¾åƒå®½é«˜æ¯”æ¯”æ¨¡æ¿å›¾åƒæ›´å¤§ï¼ˆå³æ›´çŸ®èƒ–ï¼‰
+	if (InputImageRatio >= TemplateRatio)
+	{
+		//è®¡ç®—æ¨ªå‘è£åˆ‡ä¹‹åå›¾åƒçš„å®½é«˜
+		CropRect.width = int(InputImageHeight * TemplateRatio);
+		CropRect.height = int(InputImageHeight);
+		CropRect.x = int((InputImageWidth - CropRect.width)/2.0);
+		CropRect.y = 0;
+	}
+	//å¦åˆ™è¾“å…¥å›¾åƒå®½é«˜æ¯”æ¯”æ¨¡æ¿å›¾åƒæ›´å°ï¼ˆå³æ›´é«˜ç˜¦ï¼‰
+	else
+	{
+		//è®¡ç®—æ¨ªå‘è£åˆ‡ä¹‹åå›¾åƒçš„å®½é«˜
+		CropRect.width = int(InputImageWidth);
+		CropRect.height =int(InputImageWidth /TemplateRatio);
+
+		CropRect.x = 0;
+		CropRect.y = int((InputImageHeight - CropRect.height)/2.0);
+
+
+	}
+	////è®¡ç®—è£åˆ‡ä¹‹åçš„è¾“å…¥å›¾åƒçš„é¢ç§¯
+	//CropRect.area = CroppedInputImageWidth * CroppedInputImageHeight;
+
+	rectangle(RawImageMat,//ç»˜åˆ¶çŸ©å½¢çš„å¯¹è±¡
+		CropRect, //è¦ç»˜åˆ¶çš„çŸ©å½¢
+		Scalar(255,255,255), //çº¿æ¡çš„é¢œè‰²
+		5,//çº¿æ¡å®½åº¦
+		CV_AA,//çº¿å‹ï¼ˆæŠ—æ··å ï¼‰ 
+		0 //??åæ ‡æ•°å€¼ï¼ˆäºŒè¿›åˆ¶ï¼‰çš„å°æ•°ä½æ•°
+		);
+
 
 
 	Mat GrayImageMat;
 
-	//»ñÈ¡Í¼Æ¬µÄÍ¨µÀÊı
+	//è·å–å›¾ç‰‡çš„é€šé“æ•°
 	int NumRawImageChannel = RawImageMat.channels();
 
-	//Èç¹ûÍ¼ÏñÎª3Í¨µÀ²ÊÉ«Í¼Ïñ£¬Ôò½«Æä×ª»»³É»Ò½×Í¼Ïñ
+	//å¦‚æœå›¾åƒä¸º3é€šé“å½©è‰²å›¾åƒï¼Œåˆ™å°†å…¶è½¬æ¢æˆç°é˜¶å›¾åƒ
 	if (NumRawImageChannel == 3)
 	{
-		//½«Í¼Æ¬ÓÉBGR×ª»»³É»Ò½×Í¼Ïñ
+		//å°†å›¾ç‰‡ç”±BGRè½¬æ¢æˆç°é˜¶å›¾åƒ
 		cvtColor(
-			RawImageMat,//ÊäÈëÍ¼Æ¬¾ØÕó
-			GrayImageMat,//Êä³öÍ¼Æ¬¾ØÕó 
-			COLOR_BGR2GRAY//½«Í¼Æ¬ÓÉBGR£¨OpenCVÄ¬ÈÏÍ¨µÀ¸ñÊ½£©×ª»»³É»Ò½×Í¼Ïñ
-		);
+			RawImageMat,//è¾“å…¥å›¾ç‰‡çŸ©é˜µ
+			GrayImageMat,//è¾“å‡ºå›¾ç‰‡çŸ©é˜µ 
+			COLOR_BGR2GRAY//å°†å›¾ç‰‡ç”±BGRï¼ˆOpenCVé»˜è®¤é€šé“æ ¼å¼ï¼‰è½¬æ¢æˆç°é˜¶å›¾åƒ
+			);
 	}
-	//Èç¹ûÍ¼ÏñÒÑ¾­Îª4Í¨µÀ£¨°üº¬alphaÍ¨µÀ£©Í¼Ïñ£¬Ôò½«Æä×ª»»³É»Ò½×Í¼Ïñ
+	//å¦‚æœå›¾åƒå·²ç»ä¸º4é€šé“ï¼ˆåŒ…å«alphaé€šé“ï¼‰å›¾åƒï¼Œåˆ™å°†å…¶è½¬æ¢æˆç°é˜¶å›¾åƒ
 	else if (NumRawImageChannel == 4)
 	{
-		//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
+		//å°†å›¾ç‰‡ç”±BGRAè½¬æ¢æˆç°é˜¶å›¾åƒ
 		cvtColor(
 			RawImageMat,
 			GrayImageMat,
-			COLOR_BGRA2GRAY//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
-		);
+			COLOR_BGRA2GRAY//å°†å›¾ç‰‡ç”±BGRAè½¬æ¢æˆç°é˜¶å›¾åƒ
+			);
 	}
-	//Èç¹ûÍ¼ÏñÒÑ¾­Îªµ¥Í¨µÀ»Ò½×Í¼Ïñ£¬Ö±½Ó²»×÷×ª»»½«RawImageMat¸³¸øGrayImageMat
+	//å¦‚æœå›¾åƒå·²ç»ä¸ºå•é€šé“ç°é˜¶å›¾åƒï¼Œç›´æ¥ä¸ä½œè½¬æ¢å°†RawImageMatèµ‹ç»™GrayImageMat
 	else if (NumRawImageChannel == 1)
 	{
 		GrayImageMat = RawImageMat;
 	}
 
-	//Èç¹ûÍ¨µÀÊı²»Îª1,3»ò4£¬Êä³ö´íÎóÂë²¢ÍË³ö³ÌĞò
+	//å¦‚æœé€šé“æ•°ä¸ä¸º1,3æˆ–4ï¼Œè¾“å‡ºé”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 	else
 	{
 		cout << "Unkown image channel type: " << RawImageMat.channels();
 	}
 
 
-	//Ö¸¶¨´°¿ÚÃû³Æ
+	//æŒ‡å®šçª—å£åç§°
 	const char* WindowName = "get plate number from vehicle license";
-	//´´½¨ÏàÓ¦µÄ´°¿Ú
+	//åˆ›å»ºç›¸åº”çš„çª—å£
 	namedWindow(
-		WindowName,//´°¿ÚÃû³Æ
-		CV_WINDOW_NORMAL//´Ë´°¿Ú¸ù¾İÍ¼Æ¬´óĞ¡ÏÔÊ¾Í¼Æ¬£¬²»¿Éresize
-	);
-	resizeWindow(WindowName, GrayImageMat.cols * 600 / GrayImageMat.rows, 600);
-	//ÔÚÉÏÊö´°¿ÚÖĞÏÔÊ¾»Ò½×Í¼Ïñ
+		WindowName,//çª—å£åç§°
+		CV_WINDOW_NORMAL//æ­¤çª—å£æ ¹æ®å›¾ç‰‡å¤§å°æ˜¾ç¤ºå›¾ç‰‡ï¼Œä¸å¯resize
+		);
+	resizeWindow(WindowName, int(InputImageWidth * 600.0 / InputImageHeight), 600);
+	//åœ¨ä¸Šè¿°çª—å£ä¸­æ˜¾ç¤ºç°é˜¶å›¾åƒ
 	imshow(
-		WindowName,//Ï£Íû»æÖÆÍ¼Æ¬µÄ´°¿ÚÃû³Æ
-		GrayImageMat//Ï£Íû»æÖÆµÄÍ¼Æ¬¾ØÕó
-	);
+		WindowName,//å¸Œæœ›ç»˜åˆ¶å›¾ç‰‡çš„çª—å£åç§°
+		GrayImageMat//å¸Œæœ›ç»˜åˆ¶çš„å›¾ç‰‡çŸ©é˜µ
+		);
 
-	//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+	//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 	waitKey(0);
 
 
-	//¶ÔÍ¼Ïñ½øĞĞ5*5µÄ¸ßË¹Ä£ºı
+	//å¯¹å›¾åƒè¿›è¡Œ5*5çš„é«˜æ–¯æ¨¡ç³Š
+	double GaussianBlurKernelSize = 5.0/580.0*CropRect.width;;
 	Mat BlurGrayImageMat;
 	GaussianBlur(
-		GrayImageMat, //ÊäÈëÍ¼Æ¬¾ØÕó
-		BlurGrayImageMat, //Êä³öÍ¼Æ¬¾ØÕó
-		Size(9, 9), //¸ßË¹ºË³ß´ç
-		0, //??¸ßË¹ºËX·½Ïò±ê×¼²î 
-		0, //??¸ßË¹ºËY·½Ïò±ê×¼²î
-		BORDER_DEFAULT //??ÏñËØ²åÖµ·½Ê½ 
-	);
+		GrayImageMat, //è¾“å…¥å›¾ç‰‡çŸ©é˜µ
+		BlurGrayImageMat, //è¾“å‡ºå›¾ç‰‡çŸ©é˜µ
+		Size(GaussianBlurKernelSize, GaussianBlurKernelSize), //é«˜æ–¯æ ¸å°ºå¯¸
+		0, //??é«˜æ–¯æ ¸Xæ–¹å‘æ ‡å‡†å·® 
+		0, //??é«˜æ–¯æ ¸Yæ–¹å‘æ ‡å‡†å·®
+		BORDER_DEFAULT //??åƒç´ æ’å€¼æ–¹å¼ 
+		);
 
-	//ÔÚÉÏÊö´°¿ÚÖĞÏÔÊ¾¸ßË¹Ä£ºıºóµÄÍ¼Ïñ
+	//åœ¨ä¸Šè¿°çª—å£ä¸­æ˜¾ç¤ºé«˜æ–¯æ¨¡ç³Šåçš„å›¾åƒ
 	imshow(
-		WindowName,//Ï£Íû»æÖÆÍ¼Æ¬µÄ´°¿ÚÃû³Æ
-		BlurGrayImageMat//Ï£Íû»æÖÆµÄÍ¼Æ¬¾ØÕó
-	);
+		WindowName,//å¸Œæœ›ç»˜åˆ¶å›¾ç‰‡çš„çª—å£åç§°
+		BlurGrayImageMat//å¸Œæœ›ç»˜åˆ¶çš„å›¾ç‰‡çŸ©é˜µ
+		);
 
-	//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+	//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 	waitKey(0);
 
 
-	//Ê¹ÓÃSobelËã×Ó¼ÆËãX£¨Ë®Æ½£©ºÍY(´¹Ö±)·½ÏòÌİ¶È
+	//ä½¿ç”¨Sobelç®—å­è®¡ç®—Xï¼ˆæ°´å¹³ï¼‰å’ŒY(å‚ç›´)æ–¹å‘æ¢¯åº¦
 	Mat GrayImageGradX, GrayImageGradY;
-	//¼ÆËã»Ò½×Í¼ÏñX·½ÏòÌİ¶È£©
+	//è®¡ç®—ç°é˜¶å›¾åƒXæ–¹å‘æ¢¯åº¦ï¼‰
 	Sobel(
 		BlurGrayImageMat,
-		GrayImageGradX, //Êä³öÌİ¶È¾ØÕó
-		CV_16S, //Êä³öÌİ¶È¾ØÕóµÄÀàĞÍ/Éî¶È£¬Ä¿±ê¾ØÕóÉî¶ÈÉèÖÃÎª16Î»ÓĞ·ûºÅÕûÊı±ÜÃâ¼ÆËãÖµÒç³ö
-		1, //ºáÏòÇóµ¼½×ÊıÎª1
-		0, //×İÏòÇóµ¼½áÊøÎª0£¨¼´²»Çóµ¼£©
-		CV_SCHARR, //Ê¹ÓÃ3*3µÄScharrÂË²¨Æ÷£¨ÓëSobelÂË²¨Æ÷Ò»Ñù¿ìµ«×¼È·ÂÊ¸ü¸ß£©´úÌæ3*3µÄSobelÂË²¨Æ÷¼ÆËãÌİ¶È
-		1, //??scaleÎª1
-		0, //??deltaÎª0
-		BORDER_DEFAULT //??±ß½çÀàĞÍ£¬ÏñËØ²åÖµ·½·¨
-	);//´ËÓï¾äÏàµ±ÓÚ£ºScharr( GrayImageMat, GrayImageGradX,  CV_16S , 0, 1, 1, 0, BORDER_DEFAULT);
+		GrayImageGradX, //è¾“å‡ºæ¢¯åº¦çŸ©é˜µ
+		CV_16S, //è¾“å‡ºæ¢¯åº¦çŸ©é˜µçš„ç±»å‹/æ·±åº¦ï¼Œç›®æ ‡çŸ©é˜µæ·±åº¦è®¾ç½®ä¸º16ä½æœ‰ç¬¦å·æ•´æ•°é¿å…è®¡ç®—å€¼æº¢å‡º
+		1, //æ¨ªå‘æ±‚å¯¼é˜¶æ•°ä¸º1
+		0, //çºµå‘æ±‚å¯¼ç»“æŸä¸º0ï¼ˆå³ä¸æ±‚å¯¼ï¼‰
+		CV_SCHARR, //ä½¿ç”¨3*3çš„Scharræ»¤æ³¢å™¨ï¼ˆä¸Sobelæ»¤æ³¢å™¨ä¸€æ ·å¿«ä½†å‡†ç¡®ç‡æ›´é«˜ï¼‰ä»£æ›¿3*3çš„Sobelæ»¤æ³¢å™¨è®¡ç®—æ¢¯åº¦
+		1, //??scaleä¸º1
+		0, //??deltaä¸º0
+		BORDER_DEFAULT //??è¾¹ç•Œç±»å‹ï¼Œåƒç´ æ’å€¼æ–¹æ³•
+		);//æ­¤è¯­å¥ç›¸å½“äºï¼šScharr( GrayImageMat, GrayImageGradX,  CV_16S , 0, 1, 1, 0, BORDER_DEFAULT);
 
-//Í¬Àí¼ÆËã»Ò½×Í¼ÏñY·½ÏòµÄÌİ¶È
+	//åŒç†è®¡ç®—ç°é˜¶å›¾åƒYæ–¹å‘çš„æ¢¯åº¦
 	Sobel(
 		BlurGrayImageMat,
 		GrayImageGradY,
 		CV_16S,
-		0, //ºáÏòÇóµ¼½×ÊıÎª0£¨¼´²»Çóµ¼£©
-		1, //×İÏòÇóµ¼½áÊøÎª1
+		0, //æ¨ªå‘æ±‚å¯¼é˜¶æ•°ä¸º0ï¼ˆå³ä¸æ±‚å¯¼ï¼‰
+		1, //çºµå‘æ±‚å¯¼ç»“æŸä¸º1
 		CV_SCHARR,
 		1,
 		0,
 		BORDER_DEFAULT
-	);
+		);
 
 
-	//½«XºÍY·½ÏòµÄÌİ¶ÈÖµÇó¾ø¶ÔÖµºóÓ³Éä³É8Î»ÎŞ·ûºÅÕûÊı
+	//å°†Xå’ŒYæ–¹å‘çš„æ¢¯åº¦å€¼æ±‚ç»å¯¹å€¼åæ˜ å°„æˆ8ä½æ— ç¬¦å·æ•´æ•°
 	Mat GrayImageGradX8U, GrayImageGradY8U;
 	convertScaleAbs(
-		GrayImageGradX, //ÊäÈë¾ØÕó
-		GrayImageGradX8U //Êä³ö¾ØÕó
-	);
+		GrayImageGradX, //è¾“å…¥çŸ©é˜µ
+		GrayImageGradX8U //è¾“å‡ºçŸ©é˜µ
+		);
 
 	convertScaleAbs(
 		GrayImageGradY,
 		GrayImageGradY8U
-	);
+		);
 
-	//½«XY·½ÏòÌİ¶ÈµÄ¼ÓÈ¨×÷Îª×ÜÌİ¶È
+	//å°†XYæ–¹å‘æ¢¯åº¦çš„åŠ æƒä½œä¸ºæ€»æ¢¯åº¦
 	Mat GrayImageEdge;
 	addWeighted(
-		GrayImageGradX8U, //ÊäÈë¾ØÕó1
-		0.5, //¾ØÕó1È¨ÖØ
-		GrayImageGradY8U, //ÊäÈë¾ØÕó2
-		0.5, //¾ØÕó2È¨ÖØ
-		0, //±êÁ¿Æ«ÖÃÖµ
-		GrayImageEdge, //Êä³ö¾ØÕó
-		-1 //Êä³ö¾ØÕóÀàĞÍÓë¾ØÕó1ÏàÍ¬
-	);
+		GrayImageGradX8U, //è¾“å…¥çŸ©é˜µ1
+		0.5, //çŸ©é˜µ1æƒé‡
+		GrayImageGradY8U, //è¾“å…¥çŸ©é˜µ2
+		0.5, //çŸ©é˜µ2æƒé‡
+		0, //æ ‡é‡åç½®å€¼
+		GrayImageEdge, //è¾“å‡ºçŸ©é˜µ
+		-1 //è¾“å‡ºçŸ©é˜µç±»å‹ä¸çŸ©é˜µ1ç›¸åŒ
+		);
 
-	//Ìİ¶È¾ØÕó¶şÖµ»¯
+	//æ¢¯åº¦çŸ©é˜µäºŒå€¼åŒ–
 	threshold(
-		GrayImageGradX8U, //ÊäÈë¾ØÕó
-		GrayImageEdge, //Êä³ö¾ØÕó
-		128, //µü´ú³õÊ¼ãĞÖµ
-		255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-		CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
-	);
+		GrayImageGradX8U, //è¾“å…¥çŸ©é˜µ
+		GrayImageEdge, //è¾“å‡ºçŸ©é˜µ
+		128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+		255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+		CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
+		);
 
-	//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
+	//æ˜¾ç¤ºè¾¹ç¼˜äºŒå€¼å›¾åƒ
 	imshow(
 		WindowName,
 		GrayImageEdge
-	);
+		);
 
-	//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+	//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 	waitKey(0);
 
-	//¶Ô»Ò½×Í¼ÏñµÄ±ßÔµ½øĞĞË®Æ½·½ÏòµÄÅòÕÍ
-	//¹¹ÔìÅòÕÍ²Ù×÷µÄ½á¹¹Ôª
-	int DilateElementWidth = 11;
+	//å¯¹ç°é˜¶å›¾åƒçš„è¾¹ç¼˜è¿›è¡Œæ°´å¹³æ–¹å‘çš„è†¨èƒ€
+	//æ„é€ è†¨èƒ€æ“ä½œçš„ç»“æ„å…ƒ
+	double DilateElementWidth = 9.0/580.0*CropRect.width;
 	Mat DilateElement = Mat(
-		1,//µÚÒ»Î¬£¨YÖá³ß´ç£©
-		DilateElementWidth,//µÚ¶şÎ¬£¨XÖá³ß´ç£©
-		CV_8U,//¾ØÕóÀàĞÍ£º8Î»ÎŞ·ûºÅÕûÊı
-		cvScalar(1)//Ìî³äµÄÊıÖµ£¬È«1
-	);
+		1,//ç¬¬ä¸€ç»´ï¼ˆYè½´å°ºå¯¸ï¼‰
+		DilateElementWidth,//ç¬¬äºŒç»´ï¼ˆXè½´å°ºå¯¸ï¼‰
+		CV_8U,//çŸ©é˜µç±»å‹ï¼š8ä½æ— ç¬¦å·æ•´æ•°
+		cvScalar(1)//å¡«å……çš„æ•°å€¼ï¼Œå…¨1
+		);
 	Mat DilatedGrayImageEdge;
-	//½øĞĞÅòÕÍ²Ù×÷  
+	//è¿›è¡Œè†¨èƒ€æ“ä½œ  
 	dilate(
-		GrayImageEdge,//ÊäÈë¾ØÕó
-		DilatedGrayImageEdge,//Êä³ö¾ØÕó
-		DilateElement,//ÅòÕÍ½á¹¹Ôª
-		Point(DilateElementWidth/2-1, 0), //ÅòÕÍÔªÃªµã
-		1 //½øĞĞÅòÕÍµÄ´ÎÊı
-	);
-	//ÏÔÊ¾ÅòÕÍºóµÄ¶şÖµÍ¼Ïñ
+		GrayImageEdge,//è¾“å…¥çŸ©é˜µ
+		DilatedGrayImageEdge,//è¾“å‡ºçŸ©é˜µ
+		DilateElement,//è†¨èƒ€ç»“æ„å…ƒ
+		Point(DilateElementWidth/2-1, 0), //è†¨èƒ€å…ƒé”šç‚¹
+		1 //è¿›è¡Œè†¨èƒ€çš„æ¬¡æ•°
+		);
+	//æ˜¾ç¤ºè†¨èƒ€åçš„äºŒå€¼å›¾åƒ
 	imshow(
 		WindowName,
 		DilatedGrayImageEdge
-	);
+		);
 
-
-	//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+	//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 	waitKey(0);
 
-	//¶ÔË®Æ½ÅòÕÍºóµÄÍ¼Ïñ½øĞĞÂÖÀªÌáÈ¡
+	//å¯¹æ°´å¹³è†¨èƒ€åçš„å›¾åƒè¿›è¡Œè½®å»“æå–
 	vector<vector<Point> > AllContour;
 	vector<Vec4i> ContourHierarchy;
-	findContours(DilatedGrayImageEdge,//ÊäÈëÍ¼Ïñ¾ØÕó
-		AllContour, //Êä³öÂÖÀªÏòÁ¿
-		ContourHierarchy,//Êä³öÂÖÀªµÈ¼¶ 
-		RETR_EXTERNAL,//Ö»ÌáÈ¡Íâ²¿ÂÖÀª£¨ºöÂÔÆäÖĞ°üº¬µÄÄÚ²¿ÂÖÀª£© 
-		CHAIN_APPROX_SIMPLE//ÂÖÀªµÄ½üËÆ°ì·¨£¬ÔÚ´ËÑ¡ÔñCHAIN_APPROX_SIMPLE£¬ËüÑ¹ËõË®Æ½·½Ïò£¬´¹Ö±·½Ïò£¬¶Ô½ÇÏß
-						   //·½ÏòµÄÔªËØ£¬Ö»±£Áô¸Ã·½ÏòµÄÖÕµã×ø±ê£¬ÀıÈçÒ»¸ö¾ØĞÎÂÖÀªÖ»Ğè4¸öµãÀ´±£´æÂÖÀªĞÅÏ¢
+	findContours(DilatedGrayImageEdge,//è¾“å…¥å›¾åƒçŸ©é˜µ
+		AllContour, //è¾“å‡ºè½®å»“å‘é‡
+		ContourHierarchy,//è¾“å‡ºè½®å»“ç­‰çº§ 
+		RETR_EXTERNAL,//åªæå–å¤–éƒ¨è½®å»“ï¼ˆå¿½ç•¥å…¶ä¸­åŒ…å«çš„å†…éƒ¨è½®å»“ï¼‰ 
+		CHAIN_APPROX_SIMPLE//è½®å»“çš„è¿‘ä¼¼åŠæ³•ï¼Œåœ¨æ­¤é€‰æ‹©CHAIN_APPROX_SIMPLEï¼Œå®ƒå‹ç¼©æ°´å¹³æ–¹å‘ï¼Œå‚ç›´æ–¹å‘ï¼Œå¯¹è§’çº¿
+		//æ–¹å‘çš„å…ƒç´ ï¼Œåªä¿ç•™è¯¥æ–¹å‘çš„ç»ˆç‚¹åæ ‡ï¼Œä¾‹å¦‚ä¸€ä¸ªçŸ©å½¢è½®å»“åªéœ€4ä¸ªç‚¹æ¥ä¿å­˜è½®å»“ä¿¡æ¯
 		);
-	//Öğ¸ö·ÖÎöÌáÈ¡µ½µÄÂÖÀª
-	for (size_t iContour = 0; iContour < AllContour.size(); iContour++)
+
+	//è¾¹é•¿è¯¯å·®é™åˆ¶
+	double LengthErrorLimit = 0.4;
+	//è§’åº¦è¯¯å·®é™åˆ¶
+	float AngleErrorLimit = 5;
+
+	
+	//å€ŸåŠ©æ¨¡æ¿ä¼°è®¡æ ‡é¢˜è¡Œä¸­å¿ƒç‚¹åœ¨è¾“å…¥å›¾åƒä¸­çš„ä½ç½®
+	double EstimatedTitleCenterX = (InputImageWidth - CropRect.width)/2.0 +
+		TemplateTitleCenterX /TemplateWidth *  CropRect.width;
+	double EstimatedTitleCenterY = (InputImageHeight - CropRect.height)/2.0 +
+		TemplateTitleCenterY /TemplateHeight *  CropRect.height;
+
+	//é€ä¸ªåˆ†ææå–åˆ°çš„è½®å»“
+
+	size_t iContour = 0;
+
+	//è®°å½•æ˜¯å¦æ‰¾åˆ°æ ‡é¢˜è¡Œçš„æ ‡å¿—å˜é‡
+	bool  FlagFoundTitle = false;
+	bool FlagFoundPlate  = false;
+
+	float EstimatedPlateCenterX;
+	float EstimatedPlateCenterY;
+	float EstimatedPlateWidth;
+	float EstimatedPlateHeight;
+
+	//è·å–å¤–æ¥çŸ©é˜µçš„é«˜åº¦ã€å®½åº¦ã€æ—‹è½¬è§’ã€é¢ç§¯å’Œä¸­å¿ƒç‚¹ä½ç½®
+	float ContourRectHeight;
+	//æ³¨æ„ï¼šå› ä¸ºå‰é¢åšäº†æ°´å¹³æ–¹å‘çš„è†¨èƒ€æ“ä½œï¼Œæ‰€ä»¥å¯¹è¿™é‡Œå®½åº¦å‡å»äº†ä¸€ä¸ªè†¨èƒ€å…ƒçš„å®½åº¦
+	float ContourRectWidth;
+	float ContourRectRotateAngle;
+	float ContourRectArea ;
+	float ContourRectCenterX;
+	float ContourRectCenterY;
+	double ContourRectAngle;
+
+	//è·å–è½®å»“çš„æœ€å°å¤–æ¥çŸ©å½¢ï¼ˆå¯æ—‹è½¬ï¼‰
+	RotatedRect  ContourRect;
+
+	bool IsRatioMatch,IsWidthMatch,IsHeightMatch,IsCenterXMatch,IsCenterYMatch;
+
+	vector<int> PlateToBe;
+	vector<int>::iterator itContour;
+
+	while (FlagFoundTitle == false && iContour < AllContour.size())
 	{
-		//»ñÈ¡ÂÖÀªµÄ×îĞ¡Íâ½Ó¾ØĞÎ£¨¿ÉĞı×ª£©
-		RotatedRect  ContourRect = minAreaRect(AllContour[iContour]);
+		drawContours (RawImageMat,//ç»˜åˆ¶å¯¹è±¡
+			AllContour,//è½®å»“ç‚¹æ•°ç»„
+			iContour,//ç»˜åˆ¶è½®å»“çš„ç´¢å¼•/åºå·
+			Scalar(0,0,255),//ç»˜åˆ¶çš„çº¿çš„é¢œè‰²
+			1,//ç»˜åˆ¶çš„çº¿å®½
+			CV_AA,//çº¿å‹ï¼šæŠ—æ··å 
+			ContourHierarchy,//è½®å»“çš„ç­‰çº§
+			0,//åªç»˜åˆ¶å½“å‰çº§åˆ«çš„è½®å»“
+			Point(0,0)//è½®å»“åœ¨æ°´å¹³å’Œå‚ç›´æ–¹å‘çš„åç½®
+			);
 
-		//»ñÈ¡Íâ½Ó¾ØÕóµÄ¸ß¶È¡¢¿í¶È¡¢Ğı×ª½Ç¡¢Ãæ»ıºÍÖĞĞÄµãÎ»ÖÃ
-		float ContourRectHeight = ContourRect.size.height;
-		//×¢Òâ£ºÒòÎªÇ°Ãæ×öÁËË®Æ½·½ÏòµÄÅòÕÍ²Ù×÷£¬ËùÒÔ¶ÔÕâÀï¿í¶È¼õÈ¥ÁËÒ»¸öÅòÕÍÔªµÄ¿í¶È
-		float ContourRectWidth = ContourRect.size.width- DilateElementWidth;
-		float ContourRectRotateAngle = ContourRect.angle;
-		float ContourRectArea = ContourRect.size.area();
-		float ContourRectCenterX = ContourRect.center.x;
-		float ContourRectCenterY = ContourRect.center.y;
+		imshow(WindowName,RawImageMat);
 
-		//¼ÆËãÄ£°åµÄ¿í¸ß±ÈºÍÃæ»ı
-		const float TemplateRatio = TemplateWidth/TemplateHeight;
-		const float TemplateArea = TemplateWidth*TemplateHeight;
-
-		//¼ÆËãÄ£°åµÄ±êÌâµÄ¿í¸ß±ÈºÍÃæ»ı
-		const float TemplateTitleRatio = TemplateTitleWidth/TemplateTitleHeight;
-		const float TemplateTitleArea = TemplateTitleWidth*TemplateTitleHeight;
-
-		//¼ÆËãÊäÈëÍ¼ÏñµÄ¿í¡¢¸ß¡¢Ãæ»ıºÍ¿í¸ß±È
-		const float InputImageWidth = RawImageMat.cols;
-		const float InputImageHeight = RawImageMat.rows;
-		const float InputImageArea = InputImageWidth * InputImageHeight;
-		const float InputImageRatio = InputImageWidth / InputImageHeight;
-		
-		//°´Ä£°å¿í¸ß±È½øĞĞ²ÃÇĞÖ®ºóµÄÊäÈëÍ¼ÏñµÄÃæ»ı
-		float CroppedInputImageArea;
-
-		//¼ÇÂ¼ÊÇ·ñÕÒµ½±êÌâĞĞµÄ±êÖ¾±äÁ¿
-		bool FlagFoundTitle = false;
-
-		//½èÖúÄ£°å¹À¼Æ±êÌâĞĞÖĞĞÄµãÔÚÊäÈëÍ¼ÏñÖĞµÄÎ»ÖÃ
-		float EstimatedTitleCenterX,EstimatedTitleCenterY;
+		//waitKey(0);
+		//è·å–è½®å»“çš„æœ€å°å¤–æ¥çŸ©å½¢ï¼ˆå¯æ—‹è½¬ï¼‰
+		ContourRect = minAreaRect(AllContour[iContour]);
 
 
-		//Èç¹ûÊäÈëÍ¼Ïñ¿í¸ß±È±ÈÄ£°åÍ¼Ïñ¸ü´ó£¨¼´¸ü°«ÅÖ£©
-		if (InputImageRatio >= TemplateRatio  )
+		//è·å–å¤–æ¥çŸ©é˜µçš„é«˜åº¦ã€å®½åº¦ã€æ—‹è½¬è§’ã€é¢ç§¯å’Œä¸­å¿ƒç‚¹ä½ç½®
+		ContourRectHeight = ContourRect.size.height;
+
+		ContourRectWidth = ContourRect.size.width;
+		ContourRectRotateAngle = ContourRect.angle;
+		ContourRectArea = ContourRectHeight * ContourRectWidth;
+		ContourRectCenterX = ContourRect.center.x;
+		ContourRectCenterY = ContourRect.center.y;
+
+		if (ContourRect.angle < -45.0) 
 		{
-			//¼ÆËã²ÃÇĞÖ®ºóµÄÊäÈëÍ¼ÏñµÄÃæ»ı
-			CroppedInputImageArea = InputImageHeight * TemplateRatio * InputImageHeight;
-			//ÔòºöÂÔ×óÓÒÁ½²à¶àÓàµÄ²¿·Ö£¨ÖĞĞÄµãµÄX×ø±êĞèÒªÍùÓÒÒÆ£©
-			EstimatedTitleCenterX = (InputImageWidth - InputImageHeight * TemplateRatio)/2.0 +
-				TemplateTitleCenterX /TemplateWidth *  InputImageWidth;
-			EstimatedTitleCenterY = TemplateTitleCenterY /TemplateHeight *  InputImageHeight;
+			ContourRectAngle = ContourRect.angle + 90.0;
+			swap(ContourRectWidth, ContourRectHeight);
 		}
-		//·ñÔòÊäÈëÍ¼Ïñ¿í¸ß±È±ÈÄ£°åÍ¼Ïñ¸üĞ¡£¨¼´¸ü¸ßÊİ£©
-		else
+		//æ³¨æ„ï¼šå› ä¸ºå‰é¢åšäº†æ°´å¹³æ–¹å‘çš„è†¨èƒ€æ“ä½œï¼Œæ‰€ä»¥å¯¹è¿™é‡Œå®½åº¦å‡å»äº†ä¸€ä¸ªè†¨èƒ€å…ƒçš„å®½åº¦
+		ContourRectWidth = ContourRectWidth - DilateElementWidth;
+
+		//å…ˆåˆ¤æ–­æ˜¯å¦ç¬¦åˆè½¦ç‰Œå·ç åŒºåŸŸçš„å®½é«˜æ¯”å’Œé¢ç§¯æ¯”ä¾‹å¹¶å‚¨å­˜èµ·æ¥ä»¥é¿å…åé¢è½¦ç‰ŒåŒºåŸŸæœç´¢é‡å¤è¿ç®—
+		//å¦‚æœè½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé¡ºæ—¶é’ˆä¸ºæ­£ï¼Œæ—‹è½¬è§’åº¦ä¸º-90+AngleErrorLimitï½-90åº¦ï¼Œæ­¤æ—¶ç«–è¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+		IsRatioMatch = (fabs(ContourRectWidth/ ContourRectHeight - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
+			//æˆ–è½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé€†æ—¶é’ˆä¸ºè´Ÿï¼Œæ—‹è½¬è§’åº¦ä¸º-0ï½-1*AngleErrorLimitåº¦ï¼Œæ­¤æ—¶æ¨ªè¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+			(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit);
+
+		//å®½å’Œé«˜å å›¾ç‰‡çš„æ¯”ä¾‹ä¸æ¨¡æ¿ç›¸å·®ä¸è¶…è¿‡LengthErrorLimit
+		IsWidthMatch = fabs(ContourRectWidth  / CropRect.width  - TemplatePlateWidth/TemplateWidth) / (TemplatePlateWidth/TemplateWidth) <= LengthErrorLimit ;
+		IsHeightMatch = fabs(ContourRectHeight /CropRect.height  - TemplatePlateHeight/TemplateHeight) / (TemplatePlateHeight/TemplateHeight) <= LengthErrorLimit ;
+
+		if (IsRatioMatch && IsWidthMatch && IsHeightMatch )
 		{
-			//¼ÆËã²ÃÇĞÖ®ºóµÄÊäÈëÍ¼ÏñµÄÃæ»ı
-			CroppedInputImageArea = InputImageWidth * InputImageWidth /TemplateRatio;
-			//ºöÂÔÉÏÏÂÁ½²à¶àÓàµÄ²¿·Ö£¨ÖĞĞÄµãµÄY×ø±êĞèÒªÍùÏÂÒÆ£©
-			EstimatedTitleCenterX = TemplateTitleCenterX /TemplateWidth *  InputImageWidth;
-			EstimatedTitleCenterY = (InputImageHeight - InputImageWidth /TemplateRatio)/2.0 +
-				(TemplateTitleCenterY /TemplateHeight) *  InputImageHeight;	
+			PlateToBe.push_back(iContour);
 		}
 
-		//±ß³¤Îó²îÏŞÖÆ
-		float LengthErrorLimit = 0.05;
-		//½Ç¶ÈÎó²îÏŞÖÆ
-		float AngleErrorLimit = 5;
+		//å¦‚æœè½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé¡ºæ—¶é’ˆä¸ºæ­£ï¼Œæ—‹è½¬è§’åº¦ä¸º-90+AngleErrorLimitï½-90åº¦ï¼Œæ­¤æ—¶ç«–è¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+		IsRatioMatch = fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit ;
 
-		//¶ÔÌáÈ¡µ½µÄÂÖÀª½øĞĞÉ¸Ñ¡
-		if (
-			//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-			(fabs(ContourRectHeight / ContourRectWidth - TemplateTitleRatio ) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
-			//»òÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨ÄæÊ±ÕëÎª¸º£¬Ğı×ª½Ç¶ÈÎª-0¡«-1*AngleErrorLimit¶È£¬´ËÊ±ºá±ß±»Ê¶±ğÎª¿í£©
-			(fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
-			//ÇÒÂÖÀªÃæ»ıÕ¼²ÃÇĞºóÊäÈëÍ¼Æ¬Ãæ»ıµÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ı(2+LengthErrorLimit)*LengthErrorLimit
-			(fabs(ContourRectArea / CroppedInputImageArea - TemplateTitleArea/TemplateArea) / TemplateTitleArea/TemplateArea <= (2+LengthErrorLimit)*LengthErrorLimit &&
-			//ÇÒÂÖÀªÖĞĞÄÓë¸ù¾İÄ£°å¹À¼Æ³öÀ´µÄµãÔÚXÖáºÍYÖá·½ÏòÉÏµÄÎó²î±ÈÀı¾ù²»³¬¹ıLengthErrorLimit
-			(fabs(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterY <= LengthErrorLimit) &&
-			(fabs(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit)
-			)//Âú×ãÉÏÊöÌõ¼şÎÒÃÇ±ã½«´ËÂÖÀªµ±×÷±êÌâĞĞËùÔÚµÄÎ»ÖÃ
+		//å®½å’Œé«˜å å›¾ç‰‡çš„æ¯”ä¾‹ä¸æ¨¡æ¿ç›¸å·®ä¸è¶…è¿‡LengthErrorLimit
+		IsWidthMatch = fabs(ContourRectWidth  / CropRect.width  - TemplateTitleWidth/TemplateWidth) / (TemplateTitleWidth/TemplateWidth) <= LengthErrorLimit ;
+		IsHeightMatch = fabs(ContourRectHeight / CropRect.height  - TemplateTitleHeight/TemplateHeight) / (TemplateTitleHeight/TemplateHeight) <= LengthErrorLimit ;
+
+		//ä¸”è½®å»“ä¸­å¿ƒä¸æ ¹æ®æ¨¡æ¿ä¼°è®¡å‡ºæ¥çš„ç‚¹åœ¨Xè½´å’ŒYè½´æ–¹å‘ä¸Šçš„è¯¯å·®æ¯”ä¾‹å‡ä¸è¶…è¿‡LengthErrorLimit
+		IsCenterXMatch =(fabs(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterX <= LengthErrorLimit) ;
+		IsCenterYMatch =(fabs(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit) ;
+
+		if (IsRatioMatch && IsWidthMatch && IsHeightMatch  && IsCenterXMatch &&IsCenterYMatch)
+			////å¯¹æå–åˆ°çš„è½®å»“è¿›è¡Œç­›é€‰
+			//if (
+			//	//å¦‚æœè½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé¡ºæ—¶é’ˆä¸ºæ­£ï¼Œæ—‹è½¬è§’åº¦ä¸º-90+AngleErrorLimitï½-90åº¦ï¼Œæ­¤æ—¶ç«–è¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+			//	(fabs(ContourRectHeight / ContourRectWidth - TemplateTitleRatio ) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
+			//	//æˆ–è½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé€†æ—¶é’ˆä¸ºè´Ÿï¼Œæ—‹è½¬è§’åº¦ä¸º-0ï½-1*AngleErrorLimitåº¦ï¼Œæ­¤æ—¶æ¨ªè¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+			//	(fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
+			//	//ä¸”è½®å»“é¢ç§¯å è£åˆ‡åè¾“å…¥å›¾ç‰‡é¢ç§¯çš„æ¯”ä¾‹ä¸æ¨¡æ¿ç›¸å·®ä¸è¶…è¿‡(2+LengthErrorLimit)*LengthErrorLimit
+			//	(fabs(ContourRectArea / CroppedInputImageArea - TemplateTitleArea/TemplateArea) / (TemplateTitleArea/TemplateArea) <= (2+LengthErrorLimit)*LengthErrorLimit) &&
+			//	//ä¸”è½®å»“ä¸­å¿ƒä¸æ ¹æ®æ¨¡æ¿ä¼°è®¡å‡ºæ¥çš„ç‚¹åœ¨Xè½´å’ŒYè½´æ–¹å‘ä¸Šçš„è¯¯å·®æ¯”ä¾‹å‡ä¸è¶…è¿‡LengthErrorLimit
+			//	(fabs(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterX <= LengthErrorLimit) &&
+			//	(fabs(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit)
+			//	)//æ»¡è¶³ä¸Šè¿°æ¡ä»¶æˆ‘ä»¬ä¾¿å°†æ­¤è½®å»“å½“ä½œæ ‡é¢˜è¡Œæ‰€åœ¨çš„ä½ç½®
 		{
-			//½«FlagFoundTitleÖÃtrue±íÊ¾ÎÒÃÇÒÑ¾­ÕÒµ½ÁË±êÌâĞĞ¶ÔÓ¦µÄÂÖÀª
+			//å°†FlagFoundTitleç½®trueè¡¨ç¤ºæˆ‘ä»¬å·²ç»æ‰¾åˆ°äº†æ ‡é¢˜è¡Œå¯¹åº”çš„è½®å»“
 			FlagFoundTitle = true;
-			//ÔÚÔ­Ê¼Í¼ÏñÉÏ»æÖÆ³öÕâÒ»ÂÖÀª
-			drawContours (RawImageMat,//»æÖÆ¶ÔÏó
-				AllContour,//ÂÖÀªµãÊı×é
-				iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-				Scalar(255,0,0),//»æÖÆµÄÏßµÄÑÕÉ«£ºÀ¶É«
-				5,//»æÖÆµÄÏß¿í
-				CV_AA,//ÏßĞÍ£º¿¹»ìµş
-				ContourHierarchy,//ÂÖÀªµÄµÈ¼¶
-				0,//Ö»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-				Point(0,0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
+			//åœ¨åŸå§‹å›¾åƒä¸Šç»˜åˆ¶å‡ºè¿™ä¸€è½®å»“
+			drawContours (RawImageMat,//ç»˜åˆ¶å¯¹è±¡
+				AllContour,//è½®å»“ç‚¹æ•°ç»„
+				iContour,//ç»˜åˆ¶è½®å»“çš„ç´¢å¼•/åºå·
+				Scalar(255,0,0),//ç»˜åˆ¶çš„çº¿çš„é¢œè‰²ï¼šè“è‰²
+				5,//ç»˜åˆ¶çš„çº¿å®½
+				CV_AA,//çº¿å‹ï¼šæŠ—æ··å 
+				ContourHierarchy,//è½®å»“çš„ç­‰çº§
+				0,//åªç»˜åˆ¶å½“å‰çº§åˆ«çš„è½®å»“
+				Point(0,0)//è½®å»“åœ¨æ°´å¹³å’Œå‚ç›´æ–¹å‘çš„åç½®
 				);
-			//·ÖË®Æ½·½ÏòÏà¶ÔÄ£°åË³Ê±ÕëÇãĞ±ºÍÄæÊ±ÕëÇãĞ±Á½ÖÖÇé¿ö¹À¼Æ³µÅÆºÅÖĞĞÄµã×ø±ê
 
-			float InputImageOffsetX =  (TemplateTitleCenterX-TemplatePlateCenterX)/TemplateTitleWidth  * ContourRectWidth
-			float InputImageOffsetY = 
-			//Ë³Ê±ÕëÇãĞ±Çé¿ö
-			if (ContourRectRotateAngle <= -90+AngleErrorLimit)
+
+			imshow(WindowName,RawImageMat);
+
+			waitKey(0);
+
+			//åˆ†æ°´å¹³æ–¹å‘ç›¸å¯¹æ¨¡æ¿é¡ºæ—¶é’ˆå€¾æ–œå’Œé€†æ—¶é’ˆå€¾æ–œä¸¤ç§æƒ…å†µä¼°è®¡è½¦ç‰Œå·ä¸­å¿ƒç‚¹åæ ‡
+
+			EstimatedPlateCenterX = ContourRectCenterX + (TemplatePlateCenterX-TemplateTitleCenterX)/TemplateWidth  * CropRect.width ;
+			EstimatedPlateCenterY =  ContourRectCenterY + (TemplatePlateCenterY-TemplateTitleCenterY)/TemplateHeight * CropRect.height;
+			EstimatedPlateWidth = TemplatePlateWidth/TemplateWidth * CropRect.width;
+			EstimatedPlateHeight = TemplatePlateHeight/TemplateHeight * CropRect.height;
+
+			////é¡ºæ—¶é’ˆå€¾æ–œæƒ…å†µ
+			//if (ContourRectRotateAngle <= -90+AngleErrorLimit)
+			//{
+			//	//ä»æ ‡é¢˜è¡Œä¸­å¿ƒæ°´å¹³å’Œå‚ç›´æ–¹å‘ç§»åŠ¨è‡³ä¼°è®¡çš„è½¦ç‰Œå·å¯¹åº”çš„ä¸­å¿ƒç‚¹
+			//	EstimatedPlateCenterX = ContourRectCenterX -
+			//		TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * cos(-1.0*ContourRectRotateAngle/180.0*pi);
+			//    EstimatedPlateCenterY = ContourRectCenterY + 
+			//		TemplateOffsetX/TemplateTitleHeight * ContourRectHeight * sin(-1.0*ContourRectRotateAngle/180.0*pi);
+			//}
+			//else if  (ContourRectRotateAngle >= -1*AngleErrorLimit)
+			//{
+			//	EstimatedPlateCenterX = ContourRectCenterX +
+			//		TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * sin(-1.0*ContourRectRotateAngle/180.0*pi);
+			//	EstimatedPlateCenterY = ContourRectCenterY + 
+			//		TemplateOffsetY/TemplateTitleHeight * ContourRectHeight * cos(-1.0*ContourRectRotateAngle/180.0*pi);
+			//}	
+
+
+
+			if (FlagFoundTitle == true)
 			{
-				//´Ó±êÌâĞĞÖĞĞÄË®Æ½ºÍ´¹Ö±·½ÏòÒÆ¶¯ÖÁ¹À¼ÆµÄ³µÅÆºÅ¶ÔÓ¦µÄÖĞĞÄµã
-				EstimatedPlateCenterX = ContourRectCenterX -
-					TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * cos(-1.0*ContourRectRotateAngle/180.0*pi);
-			    EstimatedPlateCenterY = ContourRectCenterY + 
-					TemplateOffsetX/TemplateTitleHeight * ContourRectHeight * sin(-1.0*ContourRectRotateAngle/180.0*pi);
-			}
-			else if  (ContourRectRotateAngle >= -1*AngleErrorLimit)
-			{
-				EstimatedPlateCenterX = ContourRectCenterX +
-					TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * sin(-1.0*ContourRectRotateAngle/180.0*pi);
-				EstimatedPlateCenterY = ContourRectCenterY + 
-					TemplateOffsetY/TemplateTitleHeight * ContourRectHeight * cos(-1.0*ContourRectRotateAngle/180.0*pi);
-			}
+				itContour = PlateToBe.begin();
 
-		}
-
-		if (FlagFoundTitle == true)
-		{
-			for (size_t iContour = 0; iContour < AllContour.size(); iContour++)
-			{
-				RotatedRect  ContourRect = minAreaRect(AllContour[iContour]);
-
-				if (
-					(fabs(PlateRectHeight / PlateRectWidth - TemplatePlateRatio ) / TemplatePlateRatio <= 0.05 && PlateRectRotateAngle <= -85) ||
-					(fabs(PlateRectWidth / PlateRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= 0.05 && PlateRectRotateAngle >= -5) &&
-					(fabs(PlateRectArea / (DetectedImageWidth*DetectedImageHeight) - TemplatePlateArea) / TemplatePlateArea <= 0.05*0.05) &&
-					(fabs(PlateRectCenterX - EstimatedPlateCenterX) / EstimatedPlateCenterY <= 0.05) &&
-					(fabs(PlateRectCenterY - EstimatedPlateCenterY) / EstimatedPlateCenterY <= 0.05)
-					)
+				while (FlagFoundPlate == false && itContour !=PlateToBe.end())
 				{
-					drawContours (RawImageMat,//»æÖÆ¶ÔÏó
-						AllContour,//ÂÖÀªµãÊı×é
-						iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-						Scalar(0,0,255),//»æÖÆµÄÏßµÄÑÕÉ«
-						5,//»æÖÆµÄÏß¿í
-						CV_AA,//ÏßĞÍ£º¿¹»ìµş
-						ContourHierarchy,//ÂÖÀªµÄµÈ¼¶
-						0,//Ö»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-						Point(0,0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
+					iContour = *(itContour);
+					drawContours (RawImageMat,//ç»˜åˆ¶å¯¹è±¡
+						AllContour,//è½®å»“ç‚¹æ•°ç»„
+						iContour,//ç»˜åˆ¶è½®å»“çš„ç´¢å¼•/åºå·
+						Scalar(0,0,255),//ç»˜åˆ¶çš„çº¿çš„é¢œè‰²
+						3,//ç»˜åˆ¶çš„çº¿å®½
+						CV_AA,//çº¿å‹ï¼šæŠ—æ··å 
+						ContourHierarchy,//è½®å»“çš„ç­‰çº§
+						0,//åªç»˜åˆ¶å½“å‰çº§åˆ«çš„è½®å»“
+						Point(0,0)//è½®å»“åœ¨æ°´å¹³å’Œå‚ç›´æ–¹å‘çš„åç½®
 						);
+
 					imshow(WindowName,RawImageMat);
+
+					//waitKey(0);
+					ContourRect = minAreaRect(AllContour[iContour]);
+
+					//è·å–å¤–æ¥çŸ©é˜µçš„é«˜åº¦ã€å®½åº¦ã€æ—‹è½¬è§’ã€é¢ç§¯å’Œä¸­å¿ƒç‚¹ä½ç½®
+					ContourRectHeight = ContourRect.size.height;
+
+					ContourRectWidth = ContourRect.size.width;
+					ContourRectRotateAngle = ContourRect.angle;
+					ContourRectArea = ContourRectHeight * ContourRectWidth;
+					ContourRectCenterX = ContourRect.center.x;
+					ContourRectCenterY = ContourRect.center.y;
+
+					if (ContourRect.angle < -45.0) 
+					{
+						ContourRectAngle = ContourRect.angle + 90.0;
+						swap(ContourRectWidth, ContourRectHeight);
+					}
+					//æ³¨æ„ï¼šå› ä¸ºå‰é¢åšäº†æ°´å¹³æ–¹å‘çš„è†¨èƒ€æ“ä½œï¼Œæ‰€ä»¥å¯¹è¿™é‡Œå®½åº¦å‡å»äº†ä¸€ä¸ªè†¨èƒ€å…ƒçš„å®½åº¦
+					ContourRectWidth = ContourRectWidth - DilateElementWidth;
+
+					//å¦‚æœè½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé¡ºæ—¶é’ˆä¸ºæ­£ï¼Œæ—‹è½¬è§’åº¦ä¸º-90+AngleErrorLimitï½-90åº¦ï¼Œæ­¤æ—¶ç«–è¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+					//IsRatioMatch = fabs(ContourRectWidth / ContourRectHeight  - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit ;
+						////æˆ–è½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé€†æ—¶é’ˆä¸ºè´Ÿï¼Œæ—‹è½¬è§’åº¦ä¸º-0ï½-1*AngleErrorLimitåº¦ï¼Œæ­¤æ—¶æ¨ªè¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+						//(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit);
+
+					////å®½å’Œé«˜å å›¾ç‰‡çš„æ¯”ä¾‹ä¸æ¨¡æ¿ç›¸å·®ä¸è¶…è¿‡LengthErrorLimit
+					//IsWidthMatch = fabs(ContourRectWidth  / CroppedInputImageWidth  - TemplatePlateWidth/TemplateWidth) / (TemplatePlateWidth/TemplateWidth) <= LengthErrorLimit ;
+					//IsHeightMatch = fabs(ContourRectHeight / CroppedInputImageHeight  - TemplatePlateHeight/TemplateHeight) / (TemplatePlateHeight/TemplateHeight) <= LengthErrorLimit ;
+
+					//ä¸”è½®å»“ä¸­å¿ƒä¸æ ¹æ®æ¨¡æ¿ä¼°è®¡å‡ºæ¥çš„ç‚¹åœ¨Xè½´å’ŒYè½´æ–¹å‘ä¸Šçš„è¯¯å·®æ¯”ä¾‹å‡ä¸è¶…è¿‡LengthErrorLimit
+					IsCenterXMatch =(fabs(ContourRectCenterX - EstimatedPlateCenterX) / EstimatedTitleCenterX <= LengthErrorLimit) ;
+					IsCenterYMatch =(fabs(ContourRectCenterY - EstimatedPlateCenterY) / EstimatedTitleCenterY <= LengthErrorLimit) ;
+
+					if (IsCenterXMatch &&IsCenterYMatch)
+						//if (
+						//	//å¦‚æœè½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé¡ºæ—¶é’ˆä¸ºæ­£ï¼Œæ—‹è½¬è§’åº¦ä¸º-90+AngleErrorLimitï½-90åº¦ï¼Œæ­¤æ—¶ç«–è¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+						//	(fabs(ContourRectHeight / ContourRectWidth - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
+						//	//æˆ–è½®å»“å¤–æ¥çŸ©å½¢çš„å®½é«˜æ¯”å’Œæ¨¡æ¿ç›¸å·®æ¯”ä¾‹ä¸è¶…è¿‡LengthErrorLimitï¼Œæ°´å¹³å€¾æ–œä¸è¶…è¿‡AngleErrorLimitåº¦ï¼ˆé€†æ—¶é’ˆä¸ºè´Ÿï¼Œæ—‹è½¬è§’åº¦ä¸º-0ï½-1*AngleErrorLimitåº¦ï¼Œæ­¤æ—¶æ¨ªè¾¹è¢«è¯†åˆ«ä¸ºå®½ï¼‰
+						//	(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
+						//	//ä¸”è½®å»“é¢ç§¯å è£åˆ‡åè¾“å…¥å›¾ç‰‡é¢ç§¯çš„æ¯”ä¾‹ä¸æ¨¡æ¿ç›¸å·®ä¸è¶…è¿‡(2+LengthErrorLimit)*LengthErrorLimit
+						//	(fabs(ContourRectArea / CroppedInputImageArea - TemplatePlateArea/TemplateArea) / (TemplatePlateArea/TemplateArea) <= (2+LengthErrorLimit)*LengthErrorLimit) &&
+						//	//ä¸”è½®å»“ä¸­å¿ƒä¸æ ¹æ®æ¨¡æ¿ä¼°è®¡å‡ºæ¥çš„ç‚¹åœ¨Xè½´å’ŒYè½´æ–¹å‘ä¸Šçš„è¯¯å·®æ¯”ä¾‹å‡ä¸è¶…è¿‡LengthErrorLimit
+						//	(fabs(ContourRectCenterX - EstimatedPlateCenterX) / EstimatedPlateCenterX <= LengthErrorLimit) &&
+						//	(fabs(ContourRectCenterY - EstimatedPlateCenterY) / EstimatedPlateCenterY <= LengthErrorLimit)
+						//	)//æ»¡è¶³ä¸Šè¿°æ¡ä»¶æˆ‘ä»¬ä¾¿å°†æ­¤è½®å»“å½“ä½œè½¦ç‰Œå·ç æ‰€åœ¨çš„ä½ç½®
+					{
+						FlagFoundPlate = true;
+						drawContours (RawImageMat,//ç»˜åˆ¶å¯¹è±¡
+							AllContour,//è½®å»“ç‚¹æ•°ç»„
+							iContour,//ç»˜åˆ¶è½®å»“çš„ç´¢å¼•/åºå·
+							Scalar(0,255,0),//ç»˜åˆ¶çš„çº¿çš„é¢œè‰²
+							3,//ç»˜åˆ¶çš„çº¿å®½
+							CV_AA,//çº¿å‹ï¼šæŠ—æ··å 
+							ContourHierarchy,//è½®å»“çš„ç­‰çº§
+							0,//åªç»˜åˆ¶å½“å‰çº§åˆ«çš„è½®å»“
+							Point(0,0)//è½®å»“åœ¨æ°´å¹³å’Œå‚ç›´æ–¹å‘çš„åç½®
+							);
+
+						imshow(WindowName,RawImageMat);
+
+						waitKey(0);
+
+					}
+
+					itContour++;
 				}
 			}
-
 		}
 
-	waitKey(0);
 
-	//·µ»Ø0²¢Õı³£ÍË³ö³ÌĞò
+		iContour ++ ;
+
+	}
+
+
+	//è¿”å›0å¹¶æ­£å¸¸é€€å‡ºç¨‹åº
 	return 0;
-
 }
-
