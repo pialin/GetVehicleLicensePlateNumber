@@ -53,8 +53,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//返回错误码并退出程序
 		return -1;
 	}
-
-
 	//计算输入图像的宽、高、面积和宽高比
 	const double InputImageWidth = RawImageMat.cols;
 	const double InputImageHeight = RawImageMat.rows;
@@ -97,6 +95,24 @@ int main(int ArgumentCount, char** ArgumentVector)
 		CropRect.y = int((InputImageHeight - CropRect.height)/2.0);
 	}
 
+	}
+
+	//将图像（裁切后部分）缩放至与模板图像尺寸一致
+	Mat ResizedImageMat;
+	resize(RawImageMat,//输入图像
+		ResizedImageMat,//输出图像
+		0,//目标图像尺寸，设为0表示缩放比例由后面参数决定
+		CropRect.width/TemplatePlateWidth,//横向缩放系数
+		CropRect.width/TemplatePlateWidth,//纵向缩放系数
+		CV_INTER_AREA//插值方式选择，CV_INTER_AREA为区域插值，在对图像进行缩小时比较合适
+		);
+
+	//计算输入图像的宽、高、面积和宽高比
+	const double ResizedImageWidth = ResizedImageMat.cols;
+	const double ResizedImageHeight = ResizedImageMat.rows;
+	const double ResizedImageArea = ResizedImageWidth * ResizedImageHeight;
+	const double ResizedImageRatio = ResizedImageWidth / ResizedImageHeight;
+
 	//将图片转换成灰阶图像
 	Mat GrayImageMat;
 	//获取图片的通道数
@@ -107,7 +123,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 	{
 		//将图片由BGR转换成灰阶图像
 		cvtColor(
-			RawImageMat,//输入图片矩阵
+			ResizedImageMat,//输入图片矩阵
 			GrayImageMat,//输出图片矩阵 
 			COLOR_BGR2GRAY//将图片由BGR（OpenCV默认通道格式）转换成灰阶图像
 			);
@@ -117,15 +133,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 	{
 		//将图片由BGRA转换成灰阶图像
 		cvtColor(
-			RawImageMat,
+			ResizedImageMat,
 			GrayImageMat,
 			COLOR_BGRA2GRAY//将图片由BGRA转换成灰阶图像
 			);
 	}
-	//如果图像已经为单通道灰阶图像，直接不作转换将RawImageMat赋给GrayImageMat
+	//如果图像已经为单通道灰阶图像，直接不作转换将ResizedImageMat赋给GrayImageMat
 	else if (NumRawImageChannel == 1)
 	{
-		GrayImageMat = RawImageMat;
+		GrayImageMat = ResizedImageMat;
 	}
 
 	//如果通道数不为1,3或4，输出错误码并退出程序
@@ -140,9 +156,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 	//创建相应的窗口
 	namedWindow(
 		WindowName,//窗口名称
-		CV_WINDOW_NORMAL//建立一个可以修改尺寸的窗口
+		CV_WINDOW_AUTOSIZE//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
 		);
-	resizeWindow(WindowName, int(InputImageWidth * 600.0 / InputImageHeight), 600);
+	/*resizeWindow(WindowName, int(ResizedImageWidth * 600.0 / ResizedImageHeight), 600);*/
 	//在上述窗口中显示灰阶图像
 	imshow(
 		WindowName,//希望绘制图片的窗口名称
@@ -290,7 +306,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		);
 
 	//连通域检测之后在原图上绘制图片裁切的框
-	rectangle(RawImageMat,//绘制矩形的对象
+	rectangle(ResizedImageMat,//绘制矩形的对象
 		CropRect, //要绘制的矩形
 		Scalar(255,255,255), //线条的颜色
 		5,//线条宽度
@@ -305,9 +321,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 	//-----------------------------------------------------------
 
 	//借助模板估计标题行中心点在输入图像中的位置
-	double EstimatedTitleCenterX = (InputImageWidth - CropRect.width)/2.0 +
+	double EstimatedTitleCenterX = (ResizedImageWidth - CropRect.width)/2.0 +
 		TemplateTitleCenterX /TemplateWidth *  CropRect.width;
-	double EstimatedTitleCenterY = (InputImageHeight - CropRect.height)/2.0 +
+	double EstimatedTitleCenterY = (ResizedImageHeight - CropRect.height)/2.0 +
 		TemplateTitleCenterY /TemplateHeight *  CropRect.height;
 
 	//使用iContour遍历提取到的轮廓
@@ -346,7 +362,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 	while (FlagFoundTitle == false && iContour < AllContour.size())
 	{
 		//绘制遍历过的轮廓
-		drawContours (RawImageMat,//绘制对象
+		drawContours (ResizedImageMat,//绘制对象
 			AllContour,//轮廓点数组
 			iContour,//绘制轮廓的索引/序号
 			Scalar(255,0,0),//绘制的线的颜色
@@ -357,7 +373,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			Point(0,0)//轮廓在水平和垂直方向的偏置
 			);
 
-		imshow(WindowName,RawImageMat);
+		imshow(WindowName,ResizedImageMat);
 		//waitKey(0);
 
 		//获取轮廓的最小外接矩形（可旋转）
@@ -436,7 +452,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//将FlagFoundTitle置true表示我们已经找到了标题行对应的轮廓
 			FlagFoundTitle = true;
 			//在原始图像上绘制出这一轮廓
-			drawContours (RawImageMat,//绘制对象
+			drawContours (ResizedImageMat,//绘制对象
 				AllContour,//轮廓点数组
 				iContour,//绘制轮廓的索引/序号
 				Scalar(255,0,0),//绘制的线的颜色：蓝色
@@ -446,7 +462,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 				0,//只绘制当前级别的轮廓
 				Point(0,0)//轮廓在水平和垂直方向的偏置
 				);
-			imshow(WindowName,RawImageMat);
+			imshow(WindowName,ResizedImageMat);
 			waitKey(0);
 
 			//根据找到的标题区域估计车牌号区域中心点坐标
@@ -486,7 +502,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			{
 				//取得当前循环的轮廓序号
 				iContour = *(itContour);
-				drawContours (RawImageMat,//绘制对象
+				drawContours (ResizedImageMat,//绘制对象
 					AllContour,//轮廓点数组
 					iContour,//绘制轮廓的索引/序号
 					Scalar(0,0,255),//绘制的线的颜色
@@ -497,7 +513,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 					Point(0,0)//轮廓在水平和垂直方向的偏置
 					);
 
-				imshow(WindowName,RawImageMat);
+				imshow(WindowName,ResizedImageMat);
 				//waitKey(0);
 
 				ContourRect = minAreaRect(AllContour[iContour]);
@@ -552,7 +568,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 				{
 					//将找到车牌区域的标志变量置true，表明我们找到了车牌区域
 					FlagFoundPlate = true;
-					drawContours (RawImageMat,//绘制对象
+					drawContours (ResizedImageMat,//绘制对象
 						AllContour,//轮廓点数组
 						iContour,//绘制轮廓的索引/序号
 						Scalar(0,0,255),//绘制的线的颜色
@@ -563,7 +579,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 						Point(0,0)//轮廓在水平和垂直方向的偏置
 						);
 
-					imshow(WindowName,RawImageMat);
+					imshow(WindowName,ResizedImageMat);
 
 					waitKey(0);
 
