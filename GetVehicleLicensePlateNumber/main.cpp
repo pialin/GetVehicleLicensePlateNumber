@@ -12,18 +12,18 @@ using namespace cv;
 
 //从模板图片中获得的位置信息
 //模板图片的宽、高
-const double TemplateWidth = 580;
-const double TemplateHeight = 387;
+const double TemplateWidth = 550;
+const double TemplateHeight = 371;
 //模板图片标题所在区域的宽、高及区域中心的XY坐标
 const double TemplateTitleWidth = 340;
-const double TemplateTitleHeight = 40;
-const double TemplateTitleCenterX = 284;
-const double TemplateTitleCenterY = 46;
+const double TemplateTitleHeight = 36;
+const double TemplateTitleCenterX = 270;
+const double TemplateTitleCenterY = 39;
 //模板图片车牌区域的宽、高及区域中心的XY坐标
-const double TemplatePlateWidth = 83;
+const double TemplatePlateWidth = 84;
 const double TemplatePlateHeight = 20;
-const double TemplatePlateCenterX = 151;
-const double TemplatePlateCenterY = 86;
+const double TemplatePlateCenterX = 138;
+const double TemplatePlateCenterY = 81;
 
 const double TemplateTitlePlateMeanX = (TemplateTitleCenterX+TemplatePlateCenterX)/2.0;
 const double TemplateTitlePlateMeanY = (TemplateTitleCenterY+TemplatePlateCenterY)/2.0;
@@ -211,7 +211,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 		//等待键盘响应，参数0表示等待时间为无限长
-		waitKey(0);
+		//waitKey(0);
 
 
 		//对图像进行高斯模糊
@@ -236,11 +236,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 		//等待键盘响应（按下任意键），参数0表示等待时间为无限长
-		waitKey(0);
+		//waitKey(0);
 
 
-		
-  		Mat GrayImageGradX(BlurGrayImageMat.rows,BlurGrayImageMat.cols,CV_8UC1,Scalar(0));
+
+		Mat GrayImageGradX(BlurGrayImageMat.rows,BlurGrayImageMat.cols,CV_8UC1,Scalar(0));
 		for(size_t iRow =0;iRow<BlurGrayImageMat.rows;iRow++)
 		{
 			for(size_t iCol = 1;iCol<(BlurGrayImageMat.cols-1);iCol++)
@@ -303,7 +303,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		////	);
 
 		//梯度矩阵二值化
-  		Mat GrayImageEdge;
+		Mat GrayImageEdge;
 		threshold(
 			GrayImageGradX, //输入矩阵
 			GrayImageEdge, //输出矩阵
@@ -319,32 +319,35 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 		//等待键盘响应，参数0表示等待时间为无限长
-		waitKey(0);
-
-		Mat  EdgeXProject(CropRect.height,1,CV_32FC1,Scalar(0));
+		//waitKey(0);
+		Mat  EdgeXProject(CropRect.height,1,CV_8UC1,Scalar(0));
+		double SumTemp;
 		for (size_t iRow = 0;iRow<CropRect.height;iRow++)
 		{
+			SumTemp = 0;
 			for (size_t iCol = CropRect.x;iCol< CropRect.x+CropRect.width;iCol++)
 			{
-				EdgeXProject.at<float>(iRow,0) +=  float(GrayImageEdge.at<uchar>(iRow + CropRect.y ,iCol));
+				SumTemp +=  double(GrayImageEdge.at<uchar>(iRow + CropRect.y ,iCol));
 			}
+			EdgeXProject.at<uchar>(iRow,0) = unsigned char(SumTemp / CropRect.width);
 		}
 
+		convertScaleAbs(
+			EdgeXProject, //输入矩阵
+			EdgeXProject //输出矩阵
+			);
+
+		Mat BinaryEdgeXProject;
 
 		threshold(
 			EdgeXProject, //输入矩阵
-			EdgeXProject, //输出矩阵
-			int(128*CropRect.height), //迭代初始阈值
+			BinaryEdgeXProject, //输出矩阵
+			128, //迭代初始阈值
 			255, //最大值（超过阈值将设为此值）
 			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 			);
-		for (size_t iRow = 0;iRow< EdgeXProject.rows;iRow++)
-		{
-			if (EdgeXProject.at<uchar>(iRow,0) == 0)
-			{
-				GrayImageEdge(Rect(CropRect.x+iRow,CropRect.y,1,CropRect.height)) = Scalar(0);
-			}
-		}
+
+		
 		//显示边缘二值图像
 		imshow(
 			WindowName,
@@ -352,17 +355,45 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 		//等待键盘响应，参数0表示等待时间为无限长
-		waitKey(0);
+		//waitKey(0);
+
+		for (size_t iRow = 2;iRow< EdgeXProject.rows-2;iRow++)
+		{
+
+			if (BinaryEdgeXProject.at<uchar>(iRow-2,0) == 0 && BinaryEdgeXProject.at<uchar>(iRow-1,0) == 0 && 
+				BinaryEdgeXProject.at<uchar>(iRow,0) == 0  && BinaryEdgeXProject.at<uchar>(iRow+1,0) == 0 && 
+				BinaryEdgeXProject.at<uchar>(iRow+2,0) == 0 )
+
+			{
+				for (size_t iCol = CropRect.x;iCol < CropRect.x + CropRect.width;iCol++) 
+				{
+					GrayImageEdge.at<uchar>(CropRect.y + iRow,iCol) = 0;
+				}
+			}
+		}
+
+		//显示边缘二值图像
+		imshow(
+			WindowName,
+			GrayImageEdge
+			);
+
+		//等待键盘响应，参数0表示等待时间为无限长
+		//waitKey(0);
+
+
+
+
 		//对灰阶图像的边缘进行水平方向的膨胀
 		//设置膨胀操作结构元的尺寸-----------------------------------
- 		double DilateElementWidth = 9 ;
+		double DilateElementWidth = 9 ;
 		//-----------------------------------------------------------
-		//构造膨胀操作的结构元，构建一个1行DilateElementWidth的结构元以完成水平膨胀
+		//构造膨胀操作的结构元，构建一个1行DilateElementWidth列的结构元以完成水平膨胀
 		Mat DilateElement = Mat(
 			1,//第一维（Y轴尺寸）
 			int(DilateElementWidth),//第二维（X轴尺寸）
 			CV_8U,//矩阵类型：8位无符号整数
-			cvScalar(1)//填充的数值，全1
+			cvScalar(1)//填充的数值，全0
 			);
 		//对边缘进行膨胀操作
 		Mat DilatedGrayImageEdge;
@@ -370,7 +401,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			GrayImageEdge,//输入矩阵
 			DilatedGrayImageEdge,//输出矩阵
 			DilateElement,//膨胀结构元
-			Point(int(DilateElementWidth/2.0-1.0), 0), //膨胀元锚点，在这里取中心作为锚点
+			Point(-1,-1), //膨胀元锚点，在这里取中心作为锚点
 			1 //进行膨胀的次数
 			);
 		//显示膨胀后的二值图像
@@ -380,7 +411,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 		//等待键盘响应，参数0表示等待时间为无限长
-		waitKey(0);
+		//waitKey(0);
+
+
 
 		//对水平膨胀后的图像进行轮廓提取
 		vector<vector<Point> > AllContour;
@@ -468,17 +501,20 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//获取轮廓的最小外接矩形（可旋转）
 			ContourRect = minAreaRect(AllContour[iContour]);
 
-
 			//获取外接矩阵的高度、宽度、旋转角、面积和中心点位置
 			ContourRectHeight = ContourRect.size.height;
 			ContourRectWidth = ContourRect.size.width;
 			ContourRectRotateAngle = ContourRect.angle;
+
+			Moments ContourMoment = moments(AllContour[iContour], false);
+			ContourRectCenterX = ContourMoment.m10/ContourMoment.m00;
+			ContourRectCenterY =  ContourMoment.m01/ContourMoment.m00;
+
 			//计算轮廓包围的面积
 			ContourArea = contourArea(AllContour[iContour],//输入轮廓
 				false//是否根据轮廓的旋转角（顺时针还是逆时针）计算带符号的面积值，这里选否
 				);
-			ContourRectCenterX = ContourRect.center.x;
-			ContourRectCenterY = ContourRect.center.y;
+	
 			//对外接矩形的旋转角进行重新映射（-90～0 -> -45~45），使其更直观
 			//当旋转角小于-45证明矩形被顺时针旋转了
 			if (ContourRect.angle < -45.0) 
@@ -488,6 +524,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 				//并将宽高值交换以符合直觉（详见RotatedRect的angle属性的定义）
 				swap(ContourRectWidth, ContourRectHeight);
 			}
+
+			ContourRectWidth = ContourArea /ContourRectHeight;
+
 			//注意：因为前面做了水平方向的膨胀操作，所以对这里将宽度减去一个膨胀元的宽度
 			ContourRectWidth = ContourRectWidth - DilateElementWidth;
 
@@ -514,7 +553,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//IsRatioMatch && IsWidthMatch &&
 			if ( IsWidthMatch && IsHeightMatch && IsAreaMatch )
 			{
- 				PlateToBe.push_back(iContour);
+				PlateToBe.push_back(iContour);
 			}
 
 			//如果轮廓外接矩形的宽高比和模板相差比例不超过LengthErrorLimit，水平倾斜不超过AngleErrorLimit度（顺时针为正，旋转角度为-90+AngleErrorLimit～-90度，此时竖边被识别为宽）
@@ -536,7 +575,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			{
 				IsAreaMatch = fabsf(ContourArea  - TemplateTitleArea)/ (TemplateTitleArea) <= fabs(LengthErrorLimit*(LengthErrorLimit-2.0)) ;
 			}
-			
+
 
 			//如果上述条件均满足，则认为当前轮廓为标题所对应的轮廓
 			if (IsWidthMatch && IsHeightMatch  && IsCenterXMatch &&IsCenterYMatch && IsAreaMatch)
@@ -557,21 +596,38 @@ int main(int ArgumentCount, char** ArgumentVector)
 				FlagFoundTitle = true;
 				//在原始图像上绘制出这一轮廓
 				drawContours (ResizedImageMat,//绘制对象
-					AllContour,//轮廓点数组
+					AllContour,//轮廓点数组21
 					iContour,//绘制轮廓的索引/序号
 					Scalar(255,0,0),//绘制的线的颜色：蓝色
 					3,//绘制的线宽
 					CV_AA,//线型：抗混叠
-					ContourHierarchy,//轮廓的等级
+					ContourHierarchy,//轮廓的等级   00000.
 					0,//只绘制当前级别的轮廓
 					Point(0,0)//轮廓在水平和垂直方向的偏置
 					);
+				CropRect.height  = int(ContourRectHeight/TemplateTitleHeight * TemplateHeight); 
+				CropRect.width  = TemplateRatio	* CropRect.height; 
+				
+				CropRect.x = int(ContourRectCenterX - (TemplateTitleCenterX /TemplateWidth)* CropRect.width);
+				CropRect.y = int(ContourRectCenterY - (TemplateTitleCenterY /TemplateWidth)* CropRect.height);
+
+
+
+				rectangle(ResizedImageMat,//绘制矩形的对象
+					CropRect, //要绘制的矩形
+					Scalar(255,0,0), //线条的颜色
+					3,//线条宽度
+					CV_AA,//线型（抗混叠） 
+					0 //??坐标数值（二进制）的小数位数
+					);
+
 				imshow(WindowName,ResizedImageMat);
-				waitKey(0);
+				//waitKey(0);
+
 
 				//根据找到的标题区域估计车牌号区域中心点坐标
-				EstimatedPlateCenterX = ContourRectCenterX + (TemplatePlateCenterX-TemplateTitleCenterX)/TemplateWidth  * CropRect.width ;
-				EstimatedPlateCenterY =  ContourRectCenterY + (TemplatePlateCenterY-TemplateTitleCenterY)/TemplateHeight * CropRect.height;
+				EstimatedPlateCenterX = CropRect.x + (TemplatePlateCenterX)/TemplateWidth  * CropRect.width ;
+				EstimatedPlateCenterY =  CropRect.y + (TemplatePlateCenterY)/TemplateHeight * CropRect.height;
 				//EstimatedPlateWidth = TemplatePlateHeight/TemplateWidth * CropRect.width;
 				//EstimatedPlateHeight = TemplatePlateHeight/TemplateHeight * CropRect.height;
 
@@ -682,6 +738,21 @@ int main(int ArgumentCount, char** ArgumentVector)
 							0,//S只绘制当前级别的轮廓
 							Point(0,0)//轮廓在水平和垂直方向的偏置
 							);
+
+						CropRect.height  = int(ContourRectHeight/TemplatePlateHeight * TemplateHeight); 
+						CropRect.width  = TemplateRatio	* CropRect.height;
+						CropRect.x = int(ContourRectCenterX - (TemplatePlateCenterX /TemplateWidth)* CropRect.width);
+						CropRect.y = int(ContourRectCenterY - (TemplatePlateCenterY /TemplateWidth)* CropRect.height);
+
+						rectangle(ResizedImageMat,//绘制矩形的对象
+							CropRect, //要绘制的矩形
+							Scalar(0,0,255), //线条的颜色
+							3,//线条宽度
+							CV_AA,//线型（抗混叠） 
+							0 //??坐标数值（二进制）的小数位数
+							);
+
+
 					}
 					//将迭代器加1转而检测下一个轮廓
 					itContour++;
@@ -692,14 +763,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 		imshow(WindowName,ResizedImageMat);
 
-		waitKey(0);
+		//waitKey(0);
 
-		//int SepPos=ImagePathList[iImage].rfind('\\');//rfind 反向查找
-		//string FolderPath = ImagePathList[iImage].substr(0,SepPos);
-		//string ImageFileName = FolderPath.substr(SepPos+1,-1);
-		//string OutputImagePath = OutputPath + "\\结果",ImageFileName;
-		//imwrite(OutputImagePath,)
-  	}
+		int SepPos=ImagePathList[iImage].rfind('\\');//rfind 反向查找
+		string FolderPath = ImagePathList[iImage].substr(0,SepPos);
+		string ImageFileName = ImagePathList[iImage].substr(SepPos+1,-1);
+		string OutputImagePath = OutputPath + "\\结果"+ImageFileName;
+		imwrite(OutputImagePath,ResizedImageMat);
+	}
 	//返回0并正常退出程序
 	return 0;
 }
