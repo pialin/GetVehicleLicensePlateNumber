@@ -1,41 +1,41 @@
-//#include "opencv2/core/core.hpp"
+ï»¿//#include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <iostream>
 #include <cmath>
 
-//Ê¹ÓÃC++±ê×¼¿âÃüÃû¿Õ¼ä
+//ä½¿ç”¨C++æ ‡å‡†åº“å‘½åç©ºé—´
 using namespace std;
 
-//Ê¹ÓÃOpenCV¿âÃüÃû¿Õ¼ä
+//ä½¿ç”¨OpenCVåº“å‘½åç©ºé—´
 using namespace cv;
 
-//´ÓÄ£°åÍ¼Æ¬ÖĞ»ñµÃµÄÎ»ÖÃĞÅÏ¢
-//Ä£°åÍ¼Æ¬µÄ¿í¡¢¸ß
+//ä»æ¨¡æ¿å›¾ç‰‡ä¸­è·å¾—çš„ä½ç½®ä¿¡æ¯
+//æ¨¡æ¿å›¾ç‰‡çš„å®½ã€é«˜
 const double TemplateWidth = 550;
 const double TemplateHeight = 371;
-//Ä£°åÍ¼Æ¬±êÌâËùÔÚÇøÓòµÄ¿í¡¢¸ß¼°ÇøÓòÖĞĞÄµÄXY×ø±ê
+//æ¨¡æ¿å›¾ç‰‡æ ‡é¢˜æ‰€åœ¨åŒºåŸŸçš„å®½ã€é«˜åŠåŒºåŸŸä¸­å¿ƒçš„XYåæ ‡
 const double TemplateTitleWidth = 340;
 const double TemplateTitleHeight = 36;
 const double TemplateTitleCenterX = 270;
 const double TemplateTitleCenterY = 39;
-//Ä£°åÍ¼Æ¬³µÅÆÇøÓòµÄ¿í¡¢¸ß¼°ÇøÓòÖĞĞÄµÄXY×ø±ê
+//æ¨¡æ¿å›¾ç‰‡è½¦ç‰ŒåŒºåŸŸçš„å®½ã€é«˜åŠåŒºåŸŸä¸­å¿ƒçš„XYåæ ‡
 const double TemplatePlateWidth = 84;
 const double TemplatePlateHeight = 20;
 const double TemplatePlateCenterX = 138;
 const double TemplatePlateCenterY = 81;
 
 
-//Ö÷º¯Êı£¬ÊäÈëÃüÁîĞĞ²ÎÊıÎª´ı´¦ÀíÍ¼Æ¬µÄÂ·¾¶
+//ä¸»å‡½æ•°ï¼Œè¾“å…¥å‘½ä»¤è¡Œå‚æ•°ä¸ºå¾…å¤„ç†å›¾ç‰‡çš„è·¯å¾„
 int main(int ArgumentCount, char** ArgumentVector)
 {
 
-	//¼ì²éÃüÁîĞĞËù´ø²ÎÊıÊıÄ¿ÊÇ·ñÕıÈ·£¬Èç¹û²»ÕıÈ·ÔòÏÔÊ¾ÓÃ·¨ËµÃ÷²¢ÍË³ö³ÌĞò
+	//æ£€æŸ¥å‘½ä»¤è¡Œæ‰€å¸¦å‚æ•°æ•°ç›®æ˜¯å¦æ­£ç¡®ï¼Œå¦‚æœä¸æ­£ç¡®åˆ™æ˜¾ç¤ºç”¨æ³•è¯´æ˜å¹¶é€€å‡ºç¨‹åº
 	if (ArgumentCount != 3)
 	{
-		//ÏÔÊ¾³ÌĞòÓÃ·¨ËµÃ÷
+		//æ˜¾ç¤ºç¨‹åºç”¨æ³•è¯´æ˜
 		cout << " Usage:  " << ArgumentVector[0] << "ImagePathGlobExpression" << "OutputPath" << endl;
-		//·µ»Ø´íÎóÂë²¢ÍË³ö³ÌĞò
+		//è¿”å›é”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 		return -1;
 	}
 
@@ -43,712 +43,463 @@ int main(int ArgumentCount, char** ArgumentVector)
 	String SearchGlobExpression = ArgumentVector[1];
 	String OutputPath = ArgumentVector[2];
 
-	glob(SearchGlobExpression,//ÎÄ¼ş²éÕÒGlob±í´ïÊ½
-		ImagePathList, //Êä³öÍ¼ÏñÎÄ¼şÁĞ±í
-		false//²»½øĞĞµİ¹é£¬¼´²»¶Ô×ÓÎÄ¼ş¼Ğ½øĞĞËÑË÷
+	glob(SearchGlobExpression,//æ–‡ä»¶æŸ¥æ‰¾Globè¡¨è¾¾å¼
+		ImagePathList, //è¾“å‡ºå›¾åƒæ–‡ä»¶åˆ—è¡¨
+		false//ä¸è¿›è¡Œé€’å½’ï¼Œå³ä¸å¯¹å­æ–‡ä»¶å¤¹è¿›è¡Œæœç´¢
 	);
 
 
-	for (size_t iImage = 0; iImage<ImagePathList.size(); iImage++)
+	for (size_t iImage = 0; iImage < ImagePathList.size(); iImage++)
 	{
-		//ĞÂ½¨¾ØÕóRawImageMatÓÃÓÚ´æ´¢Ô­Ê¼Í¼Æ¬Êı¾İ
+		//æ–°å»ºçŸ©é˜µRawImageMatç”¨äºå­˜å‚¨åŸå§‹å›¾ç‰‡æ•°æ®
 		Mat RawImageMat;
 
-		//¸ù¾İµÚÒ»¸ö²ÎÊıµÄÎÄ¼şÂ·¾¶½øĞĞÍ¼Æ¬¶ÁÈ¡
+		//æ ¹æ®ç¬¬ä¸€ä¸ªå‚æ•°çš„æ–‡ä»¶è·¯å¾„è¿›è¡Œå›¾ç‰‡è¯»å–
 		RawImageMat = imread(
-			ImagePathList[iImage],//ÊäÈëÍ¼Æ¬Â·¾¶
-			CV_LOAD_IMAGE_UNCHANGED//ÒÔ²»ĞŞ¸ÄÍ¨µÀÀàĞÍµÄ·½Ê½¶ÁÈ¡Í¼Æ¬
+			ImagePathList[iImage],//è¾“å…¥å›¾ç‰‡è·¯å¾„
+			CV_LOAD_IMAGE_UNCHANGED//ä»¥ä¸ä¿®æ”¹é€šé“ç±»å‹çš„æ–¹å¼è¯»å–å›¾ç‰‡
 		);
 
-		//¼ì²é¶ÁÈëµÄMatÊÇ·ñ°üº¬Í¼ÏñÊı¾İ
+		//æ£€æŸ¥è¯»å…¥çš„Matæ˜¯å¦åŒ…å«å›¾åƒæ•°æ®
 		if (!RawImageMat.data)
 		{
-			//ÏÔÊ¾Í¼Æ¬¶ÁÈ¡Ê§°ÜÌáÊ¾ĞÅÏ¢
+			//æ˜¾ç¤ºå›¾ç‰‡è¯»å–å¤±è´¥æç¤ºä¿¡æ¯
 			cout << " Error:  Can't read image data from" << ArgumentVector[1] << endl;
-			//·µ»Ø´íÎóÂë²¢ÍË³ö³ÌĞò
+			//è¿”å›é”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 			return -1;
 		}
-		//¼ÆËãÊäÈëÍ¼ÏñµÄ¿í¡¢¸ß¡¢Ãæ»ıºÍ¿í¸ß±È
+		//è®¡ç®—è¾“å…¥å›¾åƒçš„å®½ã€é«˜ã€é¢ç§¯å’Œå®½é«˜æ¯”
 		const double InputImageWidth = RawImageMat.cols;
 		const double InputImageHeight = RawImageMat.rows;
 
 
-		//¼ÆËãÄ£°åÍ¼Æ¬±êÌâµÄ¿í¸ß±ÈºÍÃæ»ı
-		const float TemplateTitleRatio = TemplateTitleWidth / TemplateTitleHeight;
-		const float TemplateTitleArea = TemplateTitleWidth*TemplateTitleHeight;
+		//è®¡ç®—æ¨¡æ¿å›¾ç‰‡æ ‡é¢˜çš„å®½é«˜æ¯”å’Œé¢ç§¯
+		const double TemplateTitleRatio = TemplateTitleWidth / TemplateTitleHeight;
+		const double TemplateTitleArea = TemplateTitleWidth*TemplateTitleHeight;
 
-		//¼ÆËãÄ£°åµÄ³µÅÆÇøÓòµÄ¿í¸ß±ÈºÍÃæ»ı
-		const float TemplatePlateRatio = TemplatePlateWidth / TemplatePlateHeight;
-		const float TemplatePlateArea = TemplatePlateWidth*TemplatePlateHeight;
+		//è®¡ç®—æ¨¡æ¿çš„è½¦ç‰ŒåŒºåŸŸçš„å®½é«˜æ¯”å’Œé¢ç§¯
+		const double TemplatePlateRatio = TemplatePlateWidth / TemplatePlateHeight;
+		const double TemplatePlateArea = TemplatePlateWidth*TemplatePlateHeight;
 
-		//½«Í¼Æ¬×ª»»³É»Ò½×Í¼Ïñ
+		//å°†å›¾ç‰‡è½¬æ¢æˆç°é˜¶å›¾åƒ
 		Mat GrayImageMat;
-		//»ñÈ¡Í¼Æ¬µÄÍ¨µÀÊı
+		//è·å–å›¾ç‰‡çš„é€šé“æ•°
 		int NumRawImageChannel = RawImageMat.channels();
 
-		//Èç¹ûÍ¼ÏñÎª3Í¨µÀ²ÊÉ«Í¼Ïñ
+		//å¦‚æœå›¾åƒä¸º3é€šé“å½©è‰²å›¾åƒ
 		if (NumRawImageChannel == 3)
 		{
-			//½«Í¼Æ¬ÓÉBGR×ª»»³É»Ò½×Í¼Ïñ
+			//å°†å›¾ç‰‡ç”±BGRè½¬æ¢æˆç°é˜¶å›¾åƒ
 			cvtColor(
-				RawImageMat,//ÊäÈëÍ¼Æ¬¾ØÕó
-				GrayImageMat,//Êä³öÍ¼Æ¬¾ØÕó 
-				COLOR_BGR2GRAY//½«Í¼Æ¬ÓÉBGR£¨OpenCVÄ¬ÈÏÍ¨µÀ¸ñÊ½£©×ª»»³É»Ò½×Í¼Ïñ
+				RawImageMat,//è¾“å…¥å›¾ç‰‡çŸ©é˜µ
+				GrayImageMat,//è¾“å‡ºå›¾ç‰‡çŸ©é˜µ 
+				COLOR_BGR2GRAY//å°†å›¾ç‰‡ç”±BGRï¼ˆOpenCVé»˜è®¤é€šé“æ ¼å¼ï¼‰è½¬æ¢æˆç°é˜¶å›¾åƒ
 			);
 		}
-		//Èç¹ûÍ¼ÏñÒÑ¾­Îª4Í¨µÀ£¨°üº¬alphaÍ¨µÀ£©Í¼Ïñ£¬Ôò½«Æä×ª»»³É»Ò½×Í¼Ïñ
+		//å¦‚æœå›¾åƒå·²ç»ä¸º4é€šé“ï¼ˆåŒ…å«alphaé€šé“ï¼‰å›¾åƒï¼Œåˆ™å°†å…¶è½¬æ¢æˆç°é˜¶å›¾åƒ
 		else if (NumRawImageChannel == 4)
 		{
-			//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
+			//å°†å›¾ç‰‡ç”±BGRAè½¬æ¢æˆç°é˜¶å›¾åƒ
 			cvtColor(
 				RawImageMat,
 				GrayImageMat,
-				COLOR_BGRA2GRAY//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
+				COLOR_BGRA2GRAY//å°†å›¾ç‰‡ç”±BGRAè½¬æ¢æˆç°é˜¶å›¾åƒ
 			);
 		}
-		//Èç¹ûÍ¼ÏñÒÑ¾­Îªµ¥Í¨µÀ»Ò½×Í¼Ïñ£¬Ö±½Ó²»×÷×ª»»½«ResizedImageMat¸³¸øGrayImageMat
+		//å¦‚æœå›¾åƒå·²ç»ä¸ºå•é€šé“ç°é˜¶å›¾åƒï¼Œç›´æ¥ä¸ä½œè½¬æ¢å°†ResizedImageMatèµ‹ç»™GrayImageMat
 		else if (NumRawImageChannel == 1)
 		{
 			GrayImageMat = RawImageMat;
 		}
 
-		//Èç¹ûÍ¨µÀÊı²»Îª1,3»ò4£¬Êä³ö´íÎóÂë²¢ÍË³ö³ÌĞò
+		//å¦‚æœé€šé“æ•°ä¸ä¸º1,3æˆ–4ï¼Œè¾“å‡ºé”™è¯¯ç å¹¶é€€å‡ºç¨‹åº
 		else
 		{
 			cout << "Unkown image channel type: " << RawImageMat.channels();
 		}
 
 
-		//Ö¸¶¨´°¿ÚÃû³Æ
-		const char* WindowName = "get plate number from vehicle license";
-		//´´½¨ÏàÓ¦µÄ´°¿Ú
+		//æŒ‡å®šçª—å£åç§°
+		const char* MainWindowName = "get plate number from vehicle license";
+		//åˆ›å»ºç›¸åº”çš„çª—å£
 		namedWindow(
-			WindowName,//´°¿ÚÃû³Æ
-			CV_WINDOW_NORMAL//½¨Á¢Ò»¸ö¸ù¾İÍ¼Æ¬×Ô¶¯ÉèÖÃ´óĞ¡µÄ´°¿Ú£¬µ«²»ÄÜÊÖ¶¯ĞŞ¸Ä³ß´ç
+			MainWindowName,//çª—å£åç§°
+			CV_WINDOW_NORMAL//å»ºç«‹ä¸€ä¸ªæ ¹æ®å›¾ç‰‡è‡ªåŠ¨è®¾ç½®å¤§å°çš„çª—å£ï¼Œä½†ä¸èƒ½æ‰‹åŠ¨ä¿®æ”¹å°ºå¯¸
 		);
-		double WindowWidth = 600.0;
-		resizeWindow(WindowName, int(GrayImageMat.cols / GrayImageMat.rows*WindowWidth), WindowWidth);
-		//ÔÚÉÏÊö´°¿ÚÖĞÏÔÊ¾»Ò½×Í¼Ïñ
+		double WindowHeight = 500.0;
+		resizeWindow(MainWindowName, int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
+		//åœ¨ä¸Šè¿°çª—å£ä¸­æ˜¾ç¤ºç°é˜¶å›¾åƒ
 		imshow(
-			WindowName,//Ï£Íû»æÖÆÍ¼Æ¬µÄ´°¿ÚÃû³Æ
-			GrayImageMat//Ï£Íû»æÖÆµÄÍ¼Æ¬¾ØÕó
+			MainWindowName,//å¸Œæœ›ç»˜åˆ¶å›¾ç‰‡çš„çª—å£åç§°
+			GrayImageMat//å¸Œæœ›ç»˜åˆ¶çš„å›¾ç‰‡çŸ©é˜µ
 		);
 
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+		//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 		waitKey(0);
 
 
-		////¶ÔÍ¼Ïñ½øĞĞ¸ßË¹Ä£ºı
-		////ÉèÖÃ¸ßË¹Ä£ºıºË³ß´ç-----------------------------------------
-		//double GaussianBlurKernelSize = 11;
-		////-----------------------------------------------------------
+		//å¯¹å›¾åƒè¿›è¡Œé«˜æ–¯æ¨¡ç³Š
+		//è®¾ç½®é«˜æ–¯æ¨¡ç³Šæ ¸å°ºå¯¸-----------------------------------------
+		int GaussianBlurKernelXSize = 2 * int(GrayImageMat.cols / 100) + 1;
+		int GaussianBlurKernelYSize = 2 * int(GrayImageMat.rows / 80) + 1;
+		//-----------------------------------------------------------
 		//Mat BlurGrayImageMat;
-		//GaussianBlur(
-		//	GrayImageMat, //ÊäÈëÍ¼Æ¬¾ØÕó
-		//	BlurGrayImageMat, //Êä³öÍ¼Æ¬¾ØÕó
-		//					  //Size(int(GaussianBlurKernelSize), int(GaussianBlurKernelSize)), //¸ßË¹ºË³ß´ç
-		//	Size(5, 5),//¸ßË¹ºË³ß´ç±ØĞëÊÇÕıÖµÇÒÊÇÆæÊı
-		//	0, //??¸ßË¹ºËX·½Ïò±ê×¼²î 
-		//	0, //??¸ßË¹ºËY·½Ïò±ê×¼²î
-		//	BORDER_DEFAULT //??ÏñËØ²åÖµ·½Ê½ 
-		//);
+		GaussianBlur(
+			GrayImageMat, //è¾“å…¥å›¾ç‰‡çŸ©é˜µ
+			GrayImageMat, //è¾“å‡ºå›¾ç‰‡çŸ©é˜µ
+							  //Size(int(GaussianBlurKernelSize), int(GaussianBlurKernelSize)), //é«˜æ–¯æ ¸å°ºå¯¸
+			Size(GaussianBlurKernelXSize, GaussianBlurKernelYSize),//é«˜æ–¯æ ¸å°ºå¯¸å¿…é¡»æ˜¯æ­£å€¼ä¸”æ˜¯å¥‡æ•°
+			0, //??é«˜æ–¯æ ¸Xæ–¹å‘æ ‡å‡†å·® 
+			0, //??é«˜æ–¯æ ¸Yæ–¹å‘æ ‡å‡†å·®
+			BORDER_DEFAULT //??åƒç´ æ’å€¼æ–¹å¼ 
+		);
 
-		////ÔÚÉÏÊö´°¿ÚÖĞÏÔÊ¾¸ßË¹Ä£ºıºóµÄÍ¼Ïñ
-		//imshow(
-		//	WindowName,//Ï£Íû»æÖÆÍ¼Æ¬µÄ´°¿ÚÃû³Æ
-		//	BlurGrayImageMat//Ï£Íû»æÖÆµÄÍ¼Æ¬¾ØÕó
-		//);
+		//åœ¨ä¸Šè¿°çª—å£ä¸­æ˜¾ç¤ºé«˜æ–¯æ¨¡ç³Šåçš„å›¾åƒ
+		imshow(
+			MainWindowName,//å¸Œæœ›ç»˜åˆ¶å›¾ç‰‡çš„çª—å£åç§°
+			GrayImageMat//å¸Œæœ›ç»˜åˆ¶çš„å›¾ç‰‡çŸ©é˜µ
+		);
 
-		//µÈ´ı¼üÅÌÏìÓ¦£¨°´ÏÂÈÎÒâ¼ü£©£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
-		//waitKey(0);
+		//ç­‰å¾…é”®ç›˜å“åº”ï¼ˆæŒ‰ä¸‹ä»»æ„é”®ï¼‰ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
+		waitKey(0);
 
 
 
 		Mat GrayImageGradX(GrayImageMat.rows, GrayImageMat.cols, CV_8UC1, Scalar(0));
-		for (size_t iRow = 1; iRow<GrayImageMat.rows-1; iRow++)
+		for (int iRow = 1; iRow < GrayImageMat.rows - 1; iRow++)
 		{
-			for (size_t iCol = 1; iCol<(GrayImageMat.cols - 1); iCol++)
+			for (int iCol = 1; iCol < (GrayImageMat.cols - 1); iCol++)
 			{
 				GrayImageGradX.at<uchar>(iRow, iCol) = (2 * abs(GrayImageMat.at<uchar>(iRow, iCol - 1) - GrayImageMat.at<uchar>(iRow, iCol + 1))
 					+ abs(GrayImageMat.at<uchar>(iRow - 1, iCol - 1) - GrayImageMat.at<uchar>(iRow - 1, iCol + 1))
-					+ abs(GrayImageMat.at<uchar>(iRow + 1, iCol - 1) - GrayImageMat.at<uchar>(iRow + 1, iCol + 1)))/4;
+					+ abs(GrayImageMat.at<uchar>(iRow + 1, iCol - 1) - GrayImageMat.at<uchar>(iRow + 1, iCol + 1))) / 4;
 			}
 		}
 
+		Mat BinaryGradX(GrayImageMat.rows, GrayImageMat.cols, CV_8UC1, Scalar(0));
 
-		//Ìİ¶È¾ØÕó¶şÖµ»¯
+		//æ¢¯åº¦çŸ©é˜µäºŒå€¼åŒ–
 		threshold(
-			GrayImageGradX, //ÊäÈë¾ØÕó
-			GrayImageGradX, //Êä³ö¾ØÕó
-			128, //µü´ú³õÊ¼ãĞÖµ
-			255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-			CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
+			GrayImageGradX, //è¾“å…¥çŸ©é˜µ
+			BinaryGradX, //è¾“å‡ºçŸ©é˜µ
+			0, //è¿­ä»£åˆå§‹é˜ˆå€¼
+			255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+			CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
 		);
 
-		//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
+		//æ˜¾ç¤ºè¾¹ç¼˜äºŒå€¼å›¾åƒ
 		imshow(
-			WindowName,
-			GrayImageGradX
+			MainWindowName,
+			BinaryGradX
 		);
 
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+		//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 		waitKey(0);
 
-		//´´½¨XÌİ¶ÈÍ¶Ó°ÏòÁ¿
-		Mat  GradXProject(
-			GrayImageGradX.rows,//¾ØÕóĞĞÊı
-			1,//¾ØÕóÁĞÊı
-			CV_8UC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
+		//åˆ›å»ºXæ¢¯åº¦æŠ•å½±å‘é‡
+		Mat  GradXProjectX(
+			BinaryGradX.rows,//çŸ©é˜µè¡Œæ•°
+			1,//çŸ©é˜µåˆ—æ•°
+			CV_8UC1,//çŸ©é˜µå€¼çš„ç±»å‹ï¼ˆ8ä½æ— ç¬¦å·æ•´æ•°å•é€šé“ï¼‰
+			Scalar(0)//çŸ©é˜µå¡«å…¥çš„åˆå§‹å€¼
 		);
 
 		double SumTemp;
-		for (size_t iRow = 0; iRow<GradXProject.rows; iRow++)
+		for (int iRow = 0; iRow < BinaryGradX.rows; iRow++)
 		{
 			SumTemp = 0;
-			for (size_t iCol = 0; iCol< GrayImageGradX.cols; iCol++)
+			for (int iCol = 0; iCol < BinaryGradX.cols; iCol++)
 			{
-				SumTemp += double(GrayImageGradX.at<uchar>(iRow , iCol));
+				SumTemp += double(BinaryGradX.at<uchar>(iRow, iCol));
 			}
-			GradXProject.at<uchar>(iRow, 0) = unsigned char(SumTemp / GrayImageGradX.cols);
+			GradXProjectX.at<uchar>(iRow, 0) = unsigned char(SumTemp / BinaryGradX.cols);
 		}
 
+
+		Mat BinaryGradXProjectX;
+
 		threshold(
-			GradXProject, //ÊäÈë¾ØÕó
-			GradXProject, //Êä³ö¾ØÕó
-			128, //µü´ú³õÊ¼ãĞÖµ
-			255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-			CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
+			GradXProjectX, //è¾“å…¥çŸ©é˜µ
+			BinaryGradXProjectX, //è¾“å‡ºçŸ©é˜µ
+			128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+			255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+			CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
 		);
 
+		unsigned char StemColor;
+		Mat GradXProjectXStem(
+			GrayImageGradX.rows,//çŸ©é˜µè¡Œæ•°
+			GrayImageGradX.cols,//çŸ©é˜µåˆ—æ•°
+			CV_8UC1,//çŸ©é˜µå€¼çš„ç±»å‹ï¼ˆ8ä½æ— ç¬¦å·æ•´æ•°å•é€šé“ï¼‰
+			Scalar(0)//çŸ©é˜µå¡«å…¥çš„åˆå§‹å€¼
+		);
+		for (int iRow = 0; iRow < GrayImageGradX.rows; iRow++)
+		{
+			if (BinaryGradXProjectX.at<uchar>(iRow, 0) == 0)
+			{
+				StemColor = 100;
+			}
+			else
+			{
+				StemColor = 255;
+			}
 
-		//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
+			for (int iCol = 0; iCol < GradXProjectX.at<uchar>(iRow, 0) / 255.0*GrayImageGradX.cols; iCol++)
+			{
+				GradXProjectXStem.at<uchar>(iRow, iCol) = StemColor;
+			}
+
+		}
+		//æ˜¾ç¤ºè¾¹ç¼˜äºŒå€¼å›¾åƒ
+		namedWindow(
+			"GradXProjectXStem",//çª—å£åç§°
+			CV_WINDOW_NORMAL//å»ºç«‹ä¸€ä¸ªæ ¹æ®å›¾ç‰‡è‡ªåŠ¨è®¾ç½®å¤§å°çš„çª—å£ï¼Œä½†ä¸èƒ½æ‰‹åŠ¨ä¿®æ”¹å°ºå¯¸
+		);
+		resizeWindow("GradXProjectXStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
 		imshow(
-			WindowName,
-			GradXProject
+			"GradXProjectXStem",
+			GradXProjectXStem
 		);
 
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
+
+		//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
 		waitKey(0);
 
-		size_t iRow = 0;
-		vector<size_t> RisingRow , FallingRow;
-		for (size_t iRow = 0; iRow < GradXProject.rows;iRow++)
+		int TextMinHeight = 10;
+		vector<int> RisingRow, FallingRow;
+		for (int iRow = 0; iRow < BinaryGradXProjectX.rows; iRow++)
 		{
-			for (; iRow < GradXProject.rows - 1 && GradXProject.at<uchar>(iRow, 0) == 0 && GradXProject.at<uchar>(iRow + 1, 0) == 255; iRow++);
-			if (iRow < GradXProject.rows - 1)
+			if (iRow < BinaryGradXProjectX.rows - 2 && BinaryGradXProjectX.at<uchar>(iRow, 0) == 0 && BinaryGradXProjectX.at<uchar>(iRow + 1, 0) == 255)
 			{
 				RisingRow.push_back(iRow);
-				iRow++;
 			}
-			for (; iRow < GradXProject.rows - 1 && GradXProject.at<uchar>(iRow + 1, 0) == 0; iRow++);
-			if (iRow < GradXProject.rows - 1)
+			else if (iRow < BinaryGradXProjectX.rows - 1 && BinaryGradXProjectX.at<uchar>(iRow, 0) == 255 && BinaryGradXProjectX.at<uchar>(iRow + 1, 0) == 0)
 			{
-				FallingRow.push_back(iRow);
-			}
-		}
-
-		size_t TextHeightMin = 10;
-
-		vector<size_t>::iterator itTextRowStart = RisingRow.begin(), itTextRowEnd = FallingRow.begin();
-
-		for (;itTextRowStart != RisingRow.end() && itTextRowEnd != FallingRow.end(); )
-		{
-			if (*(itTextRowStart)-*(itTextRowEnd) <= TextHeightMin)
-			{
-				itTextRowStart = RisingRow.erase(itTextRowStart);
-				itTextRowEnd = RisingRow.erase(itTextRowEnd);
-			}
-			else
-			{
-				itTextRowStart++;
-				itTextRowEnd++;
-			}
-			
-		}
-
-		Mat GrayImageGradY(GrayImageMat.rows, GrayImageMat.cols, CV_8UC1, Scalar(0));
-		for (size_t iRow = 1; iRow<GrayImageMat.rows - 1; iRow++)
-		{
-			for (size_t iCol = 1; iCol<(GrayImageMat.cols - 1); iCol++)
-			{
-				GrayImageGradY.at<uchar>(iRow, iCol) = (2 * abs(GrayImageMat.at<uchar>(iRow-1, iCol) - GrayImageMat.at<uchar>(iRow+1, iCol))
-					+ abs(GrayImageMat.at<uchar>(iRow - 1 , iCol - 1) - GrayImageMat.at<uchar>(iRow + 1, iCol - 1))
-					+ abs(GrayImageMat.at<uchar>(iRow - 1, iCol + 1) - GrayImageMat.at<uchar>(iRow + 1, iCol + 1))) / 4;
-			}
-		}
-
-
-		//Ìİ¶È¾ØÕó¶şÖµ»¯
-		threshold(
-			GrayImageGradY, //ÊäÈë¾ØÕó
-			GrayImageGradY, //Êä³ö¾ØÕó
-			128, //µü´ú³õÊ¼ãĞÖµ
-			255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-			CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
-		);
-
-		//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
-		imshow(
-			WindowName,
-			GrayImageGradY
-		);
-
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
-		waitKey(0);
-
-		//´´½¨XÌİ¶ÈÍ¶Ó°ÏòÁ¿
-		Mat  GradYProject(
-			1,//¾ØÕóĞĞÊı
-			GrayImageGradY.rows,//¾ØÕóÁĞÊı
-			CV_8UC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
-		);
-
-		double SumTemp;
-		for (size_t iCol = 0; iCol<GradYProject.cols; iCol++)
-		{
-			SumTemp = 0;
-			for (size_t iRow = 0; iRow< GrayImageGradY.rows; iRow++)
-			{
-				SumTemp += double(GrayImageGradY.at<uchar>(iRow, iCol));
-			}
-			GradYProject.at<uchar>(0,iCol) = unsigned char(SumTemp / GrayImageGradY.rows);
-		}
-
-		threshold(
-			GradYProject, //ÊäÈë¾ØÕó
-			GradYProject, //Êä³ö¾ØÕó
-			128, //µü´ú³õÊ¼ãĞÖµ
-			255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-			CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
-		);
-
-
-		//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
-		imshow(
-			WindowName,
-			GradYProject
-		);
-
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
-		waitKey(0);
-
-
-		for (size_t iRow = 2; iRow< EdgeXProject.rows - 2; iRow++)
-		{
-
-			if (BinaryEdgeXProject.at<uchar>(iRow - 2, 0) == 0 && BinaryEdgeXProject.at<uchar>(iRow - 1, 0) == 0 &&
-				BinaryEdgeXProject.at<uchar>(iRow, 0) == 0 && BinaryEdgeXProject.at<uchar>(iRow + 1, 0) == 0 &&
-				BinaryEdgeXProject.at<uchar>(iRow + 2, 0) == 0)
-
-			{
-				for (size_t iCol = CropRect.x; iCol < CropRect.x + CropRect.width; iCol++)
+				if (RisingRow.size() - FallingRow.size() == 1)
 				{
-					GrayImageEdge.at<uchar>(CropRect.y + iRow, iCol) = 0;
+					if (iRow - RisingRow.back() >= TextMinHeight)
+					{
+						FallingRow.push_back(iRow);
+					}
+					else
+					{
+						RisingRow.pop_back();
+					}
 				}
+
 			}
 		}
 
-		//ÏÔÊ¾±ßÔµ¶şÖµÍ¼Ïñ
-		imshow(
-			WindowName,
-			GrayImageEdge
-		);
-
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
-		//waitKey(0);
-
-
-
-
-		//¶Ô»Ò½×Í¼ÏñµÄ±ßÔµ½øĞĞË®Æ½·½ÏòµÄÅòÕÍ
-		//ÉèÖÃÅòÕÍ²Ù×÷½á¹¹ÔªµÄ³ß´ç-----------------------------------
-		double DilateElementWidth = 9;
-		//-----------------------------------------------------------
-		//¹¹ÔìÅòÕÍ²Ù×÷µÄ½á¹¹Ôª£¬¹¹½¨Ò»¸ö1ĞĞDilateElementWidthÁĞµÄ½á¹¹ÔªÒÔÍê³ÉË®Æ½ÅòÕÍ
-		Mat DilateElement = Mat(
-			1,//µÚÒ»Î¬£¨YÖá³ß´ç£©
-			int(DilateElementWidth),//µÚ¶şÎ¬£¨XÖá³ß´ç£©
-			CV_8U,//¾ØÕóÀàĞÍ£º8Î»ÎŞ·ûºÅÕûÊı
-			cvScalar(1)//Ìî³äµÄÊıÖµ£¬È«0
-		);
-		//¶Ô±ßÔµ½øĞĞÅòÕÍ²Ù×÷
-		Mat DilatedGrayImageEdge;
-		dilate(
-			GrayImageEdge,//ÊäÈë¾ØÕó
-			DilatedGrayImageEdge,//Êä³ö¾ØÕó
-			DilateElement,//ÅòÕÍ½á¹¹Ôª
-			Point(-1, -1), //ÅòÕÍÔªÃªµã£¬ÔÚÕâÀïÈ¡ÖĞĞÄ×÷ÎªÃªµã
-			1 //½øĞĞÅòÕÍµÄ´ÎÊı
-		);
-		//ÏÔÊ¾ÅòÕÍºóµÄ¶şÖµÍ¼Ïñ
-		imshow(
-			WindowName,
-			DilatedGrayImageEdge
-		);
-
-		//µÈ´ı¼üÅÌÏìÓ¦£¬²ÎÊı0±íÊ¾µÈ´ıÊ±¼äÎªÎŞÏŞ³¤
-		//waitKey(0);
-
-
-
-		//¶ÔË®Æ½ÅòÕÍºóµÄÍ¼Ïñ½øĞĞÂÖÀªÌáÈ¡
-		vector<vector<Point> > AllContour;
-		vector<Vec4i> ContourHierarchy;
-		findContours(DilatedGrayImageEdge,//ÊäÈëÍ¼Ïñ¾ØÕó
-			AllContour, //Êä³öÂÖÀªÏòÁ¿
-			ContourHierarchy,//Êä³öÂÖÀªµÈ¼¶ 
-			RETR_EXTERNAL,//Ö»ÌáÈ¡Íâ²¿ÂÖÀª£¨ºöÂÔÆäÖĞ°üº¬µÄÄÚ²¿ÂÖÀª£© 
-			CHAIN_APPROX_SIMPLE//ÂÖÀªµÄ½üËÆ°ì·¨£¬ÔÚ´ËÑ¡ÔñCHAIN_APPROX_SIMPLE£¬ËüÑ¹ËõË®Æ½·½Ïò£¬´¹Ö±·½Ïò£¬¶Ô½ÇÏß
-							   //·½ÏòµÄÔªËØ£¬Ö»±£Áô¸Ã·½ÏòµÄÖÕµã×ø±ê£¬ÀıÈçÒ»¸ö¾ØĞÎÂÖÀªÖ»Ğè4¸öµãÀ´±£´æÂÖÀªĞÅÏ¢
-		);
-
-		//sort(AllContour.begin(),AllContour.begin()+2,CompareContourCenter);
-		////Á¬Í¨Óò¼ì²âÖ®ºóÔÚÔ­Í¼ÉÏ»æÖÆÍ¼Æ¬²ÃÇĞµÄ¿ò
-		rectangle(ResizedImageMat,//»æÖÆ¾ØĞÎµÄ¶ÔÏó
-			CropRect, //Òª»æÖÆµÄ¾ØĞÎ
-			Scalar(255, 255, 255), //ÏßÌõµÄÑÕÉ«
-			3,//ÏßÌõ¿í¶È
-			CV_AA,//ÏßĞÍ£¨¿¹»ìµş£© 
-			0 //??×ø±êÊıÖµ£¨¶ş½øÖÆ£©µÄĞ¡ÊıÎ»Êı
-		);
-
-		//±ß³¤Îó²îÏŞÖÆ-----------------------------------------------
-		double LengthErrorLimit = 0.3;
-		//½Ç¶ÈÎó²îÏŞÖÆ
-		float AngleErrorLimit = 5;
-		//-----------------------------------------------------------
-
-		//½èÖúÄ£°å¹À¼Æ±êÌâĞĞÖĞĞÄµãÔÚÊäÈëÍ¼ÏñÖĞµÄÎ»ÖÃ
-		double EstimatedTitleCenterX = (ResizedImageWidth - CropRect.width) / 2.0 +
-			TemplateTitleCenterX / TemplateWidth *  CropRect.width;
-		double EstimatedTitleCenterY = (ResizedImageHeight - CropRect.height) / 2.0 +
-			TemplateTitleCenterY / TemplateHeight *  CropRect.height;
-
-		//Ê¹ÓÃiContour±éÀúÌáÈ¡µ½µÄÂÖÀª
-		size_t iContour = 0;
-
-		//¼ÇÂ¼ÊÇ·ñÕÒµ½±êÌâĞĞºÍ³µÅÆÇøÓòµÄ±êÖ¾±äÁ¿
-		bool FlagFoundTitle = false;
-		bool FlagFoundPlate = false;
-
-		//±£´æ¸ù¾İ±êÌâÇøÓò¹À¼Æ³öÀ´µÄ³µÅÆÇøÓòÖĞĞÄµã×ø±ê¡¢¿íºÍ¸ß
-		double EstimatedPlateCenterX;
-		double EstimatedPlateCenterY;
-
-
-		//±£´æÂÖÀªÍâ½Ó¾ØÕóµÄ ¸ß¶È¡¢¿í¶È¡¢Ãæ»ı¡¢ÖĞĞÄµãÎ»ÖÃºÍĞı×ª½Ç
-		double ContourRectHeight;
-		double ContourRectWidth;
-		double ContourRectRotateAngle;
-		double ContourArea;
-		double ContourRectCenterX;
-		double ContourRectCenterY;
-		double ContourRectAngle;
-
-		//±£´æÂÖÀªµÄ×îĞ¡Íâ½Ó¾ØĞÎ£¨¿ÉĞı×ª£©
-		RotatedRect  ContourRect;
-
-		//±£´æÅĞ¶ÏÂÖÀªÍâ½Ó¾ØĞÎÊÇ·ñ·ûºÏ¿í¸ß±ÈÀı¡¢¿í¶È¡¢¸ß¶È¡¢ÖĞĞÄµãXYÎ»ÖÃ,ÒÔ¼°Ãæ»ı´óĞ¡µÄ±êÖ¾±äÁ¿
-		bool IsWidthMatch, IsHeightMatch, IsCenterXMatch, IsCenterYMatch, IsAreaMatch;
-
-		//±£´æµÚÒ»´Î±éÀú£¨Ñ°ÕÒ±êÌâÇøÓò£©Ê±Ë³±ã½øĞĞµÄ³µÅÆ³ß´ç¿í¸ß±ÈºÍ³ß´ç¼ì²éÖĞ·ûºÏÒªÇóµÄÂÖÀªĞòºÅ£¨µÚ¶ş´Î¼ì²âÖ»Ğè±éÀúÕâ²¿·ÖÂÖÀª£©
-		vector<int> PlateToBe;
-		//±éÀúPlateToBeµÄµü´úÆ÷
-		vector<int>::iterator itContour;
-
-		//µ±Î´ÕÒµ½±êÌâÇøÓòÊ±ÇÒ»¹ÓĞÎ´¼ì²âÂÖÀªÊ±¼ÌĞøÑ­»·
-		while (FlagFoundTitle == false && iContour < AllContour.size())
+		if (RisingRow.size() != FallingRow.size() || RisingRow.size() == 0 || FallingRow.size() == 0)
 		{
-			////»æÖÆ±éÀú¹ıµÄÂÖÀª
-			//drawContours (ResizedImageMat,//»æÖÆ¶ÔÏó
-			//	AllContour,//ÂÖÀªµãÊı×é
-			//	iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-			//	Scalar(255,0,0),//»æÖÆµÄÏßµÄÑÕÉ«
-			//	1,//»æÖÆµÄÏß¿í
-			//	CV_AA,//ÏßĞÍ£º¿¹»ìµş
-			//	ContourHierarchy,//ÂÖÀªµÄµÈ¼¶
-			//	0,//Ö»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-			//	Point(0,0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
-			//	);
+			cout << "Erorr: Unmatched sizes between RisingRow and FallingRow or empty vector RisingRow or FallingRow.";
+			return -1;
+		}
 
-			//imshow(WindowName,ResizedImageMat);
-			//waitKey(0);
 
-			//»ñÈ¡ÂÖÀªµÄ×îĞ¡Íâ½Ó¾ØĞÎ£¨¿ÉĞı×ª£©
-			ContourRect = minAreaRect(AllContour[iContour]);
+		int DilateElementWidth = 2 * int(GrayImageMat.cols / 80) + 1;
 
-			//»ñÈ¡Íâ½Ó¾ØÕóµÄ¸ß¶È¡¢¿í¶È¡¢Ğı×ª½Ç¡¢Ãæ»ıºÍÖĞĞÄµãÎ»ÖÃ
-			ContourRectHeight = ContourRect.size.height;
-			ContourRectWidth = ContourRect.size.width;
-			ContourRectRotateAngle = ContourRect.angle;
+		//-----------------------------------------------------------
+		//æ„é€ è†¨èƒ€æ“ä½œçš„ç»“æ„å…ƒï¼Œæ„å»ºä¸€ä¸ª1è¡ŒDilateElementWidthåˆ—çš„ç»“æ„å…ƒä»¥å®Œæˆæ°´å¹³è†¨èƒ€
+		Mat DilateElement = Mat(
+			1,//ç¬¬ä¸€ç»´ï¼ˆYè½´å°ºå¯¸ï¼‰
+			DilateElementWidth,//ç¬¬äºŒç»´ï¼ˆXè½´å°ºå¯¸ï¼‰
+			CV_8U,//çŸ©é˜µç±»å‹ï¼š8ä½æ— ç¬¦å·æ•´æ•°
+			cvScalar(1)//å¡«å……çš„æ•°å€¼ï¼Œå…¨0
+		);
+		//å¯¹è¾¹ç¼˜è¿›è¡Œè†¨èƒ€æ“ä½œ
+		Mat DilatedGradX;
+		dilate(
+			BinaryGradX,//è¾“å…¥çŸ©é˜µ
+			DilatedGradX,//è¾“å‡ºçŸ©é˜µ
+			DilateElement,//è†¨èƒ€ç»“æ„å…ƒ
+			Point(-1, -1), //è†¨èƒ€å…ƒé”šç‚¹ï¼Œåœ¨è¿™é‡Œå–ä¸­å¿ƒä½œä¸ºé”šç‚¹
+			1 //è¿›è¡Œè†¨èƒ€çš„æ¬¡æ•°
+		);
+		//æ˜¾ç¤ºè†¨èƒ€åçš„äºŒå€¼å›¾åƒ
+		imshow(
+			MainWindowName,
+			DilatedGradX
+		);
+		//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
+		waitKey(0);
 
-			Moments ContourMoment = moments(AllContour[iContour], false);
-			ContourRectCenterX = ContourMoment.m10 / ContourMoment.m00;
-			ContourRectCenterY = ContourMoment.m01 / ContourMoment.m00;
-
-			//¼ÆËãÂÖÀª°üÎ§µÄÃæ»ı
-			ContourArea = contourArea(AllContour[iContour],//ÊäÈëÂÖÀª
-				false//ÊÇ·ñ¸ù¾İÂÖÀªµÄĞı×ª½Ç£¨Ë³Ê±Õë»¹ÊÇÄæÊ±Õë£©¼ÆËã´ø·ûºÅµÄÃæ»ıÖµ£¬ÕâÀïÑ¡·ñ
+		//Mat GrayImageGradY(GrayImageMat.rows, GrayImageMat.cols, CV_8UC1, Scalar(0));
+		//for (int iRow = 1; iRow < GrayImageMat.rows - 1; iRow++)
+		//{
+		//	for (int iCol = 1; iCol < (GrayImageMat.cols - 1); iCol++)
+		//	{
+		//		GrayImageGradY.at<uchar>(iRow, iCol) = (2 * abs(GrayImageMat.at<uchar>(iRow - 1, iCol) - GrayImageMat.at<uchar>(iRow + 1, iCol))
+		//			+ abs(GrayImageMat.at<uchar>(iRow - 1, iCol - 1) - GrayImageMat.at<uchar>(iRow + 1, iCol - 1))
+		//			+ abs(GrayImageMat.at<uchar>(iRow - 1, iCol + 1) - GrayImageMat.at<uchar>(iRow + 1, iCol + 1))) / 4;
+		//	}
+		//}
+		for (int iConvexX = 0; iConvexX < RisingRow.size(); iConvexX++)
+		{
+			Rect ProjectYRect;
+			ProjectYRect.x = 0;
+			ProjectYRect.y = RisingRow[iConvexX];
+			ProjectYRect.width = DilatedGradX.cols;
+			ProjectYRect.height = FallingRow[iConvexX] - RisingRow[iConvexX];
+			rectangle(DilatedGradX,//ç»˜åˆ¶çŸ©å½¢çš„å¯¹è±¡
+				ProjectYRect, //è¦ç»˜åˆ¶çš„çŸ©å½¢
+				Scalar(100), //çº¿æ¡çš„é¢œè‰²
+				3,//çº¿æ¡å®½åº¦
+				LINE_AA,//çº¿å‹ï¼ˆæŠ—æ··å ï¼‰ 
+				0 //??åæ ‡æ•°å€¼ï¼ˆäºŒè¿›åˆ¶ï¼‰çš„å°æ•°ä½æ•°
 			);
 
-			//¶ÔÍâ½Ó¾ØĞÎµÄĞı×ª½Ç½øĞĞÖØĞÂÓ³Éä£¨-90¡«0 -> -45~45£©£¬Ê¹Æä¸üÖ±¹Û
-			//µ±Ğı×ª½ÇĞ¡ÓÚ-45Ö¤Ã÷¾ØĞÎ±»Ë³Ê±ÕëĞı×ªÁË
-			if (ContourRect.angle < -45.0)
+			//æ˜¾ç¤ºè¾¹ç¼˜äºŒå€¼å›¾åƒ
+			imshow(
+				MainWindowName,
+				DilatedGradX
+			);
+
+			//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
+			waitKey(0);
+
+
+
+			//åˆ›å»ºYæ¢¯åº¦æŠ•å½±å‘é‡
+			Mat  GradXProjectY(
+				1,//çŸ©é˜µè¡Œæ•°
+				DilatedGradX.cols,//çŸ©é˜µåˆ—æ•°
+				CV_8UC1,//çŸ©é˜µå€¼çš„ç±»å‹ï¼ˆ8ä½æ— ç¬¦å·æ•´æ•°å•é€šé“ï¼‰
+				Scalar(0)//çŸ©é˜µå¡«å…¥çš„åˆå§‹å€¼
+			);
+
+
+			for (int iCol = 0; iCol < DilatedGradX.cols; iCol++)
 			{
-				//½«Æä¼Ó90¶È×ª»»ÎªÕıÖµ
-				ContourRectAngle = ContourRect.angle + 90.0;
-				//²¢½«¿í¸ßÖµ½»»»ÒÔ·ûºÏÖ±¾õ£¨Ïê¼ûRotatedRectµÄangleÊôĞÔµÄ¶¨Òå£©
-				swap(ContourRectWidth, ContourRectHeight);
-			}
-
-			ContourRectWidth = ContourArea / ContourRectHeight;
-
-			//×¢Òâ£ºÒòÎªÇ°Ãæ×öÁËË®Æ½·½ÏòµÄÅòÕÍ²Ù×÷£¬ËùÒÔ¶ÔÕâÀï½«¿í¶È¼õÈ¥Ò»¸öÅòÕÍÔªµÄ¿í¶È
-			ContourRectWidth = ContourRectWidth - DilateElementWidth;
-
-			//ÏÈÅĞ¶ÏÊÇ·ñ·ûºÏ³µÅÆºÅÂëÇøÓòµÄ¿í¸ß±ÈºÍÃæ»ı±ÈÀı²¢´¢´æÆğÀ´ÒÔ±ÜÃâºóÃæ³µÅÆÇøÓòËÑË÷ÖØ¸´ÔËËã
-			//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-			//IsRatioMatch = (fabs(ContourRectWidth/ ContourRectHeight - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
-			//»òÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨ÄæÊ±ÕëÎª¸º£¬Ğı×ª½Ç¶ÈÎª-0¡«-1*AngleErrorLimit¶È£¬´ËÊ±ºá±ß±»Ê¶±ğÎª¿í£©
-			//(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit);
-
-			//¿íºÍ¸ßÕ¼Í¼Æ¬µÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ıLengthErrorLimit
-			IsWidthMatch = fabs(ContourRectWidth / CropRect.width - TemplatePlateWidth / TemplateWidth) / (TemplatePlateWidth / TemplateWidth) <= LengthErrorLimit;
-			IsHeightMatch = fabsf(ContourRectHeight / CropRect.height - TemplatePlateHeight / TemplateHeight) / (TemplatePlateHeight / TemplateHeight) <= LengthErrorLimit;
-			//ÂÖÀªÎ§³ÉµÄÃæ»ıÓëÄ£°åÏà²î²»³¬¹ıLengthErrorLimit*(2+LengthErrorLimit)
-			if (ContourArea >= TemplateTitleArea)
-			{
-				IsAreaMatch = fabsf(ContourArea - TemplatePlateArea) / (TemplatePlateArea) <= fabsf(LengthErrorLimit*(2.0 + LengthErrorLimit));
-			}
-			else
-			{
-				IsAreaMatch = fabsf(ContourArea - TemplatePlateArea) / (TemplatePlateArea) <= fabs(LengthErrorLimit*(LengthErrorLimit - 2.0));
-			}
-
-			//Èç¹ûÇøÓòÂú×ã³µÅÆÇøÓòµÄ¸ß¶È¼°Ãæ»ıÒªÇó£¬¼´½«ÆäÑ¹Èë×¼³µÅÆÇøÓòÊ¸Á¿PlateToBeÖĞ£¨µÚ¶ş´Î±éÀú½«Ö»¼ì²â´ËÇøÓò£©
-			//IsRatioMatch && IsWidthMatch &&
-			if (IsWidthMatch && IsHeightMatch && IsAreaMatch)
-			{
-				PlateToBe.push_back(iContour);
-			}
-
-			//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-			//IsRatioMatch = fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit ;
-
-			//¿íºÍ¸ßÕ¼Í¼Æ¬µÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ıLengthErrorLimit
-			IsWidthMatch = fabs(ContourRectWidth / CropRect.width - TemplateTitleWidth / TemplateWidth) / (TemplateTitleWidth / TemplateWidth) <= LengthErrorLimit;
-			IsHeightMatch = fabsf(ContourRectHeight / CropRect.height - TemplateTitleHeight / TemplateHeight) / (TemplateTitleHeight / TemplateHeight) <= LengthErrorLimit;
-
-			//ÇÒÂÖÀªÖĞĞÄÓë¸ù¾İÄ£°å¹À¼Æ³öÀ´µÄµãÔÚXÖáºÍYÖá·½ÏòÉÏµÄÎó²î±ÈÀı¾ù²»³¬¹ıLengthErrorLimit
-			IsCenterXMatch = (fabsf(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterX <= LengthErrorLimit);
-			IsCenterYMatch = (fabsf(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit);
-			//ÂÖÀªÎ§³ÉµÄÃæ»ıÓëÄ£°åÏà²î²»³¬¹ıLengthErrorLimit*(2+LengthErrorLimit)
-			if (ContourArea >= TemplateTitleArea)
-			{
-				IsAreaMatch = fabsf(ContourArea - TemplateTitleArea) / (TemplateTitleArea) <= fabsf(LengthErrorLimit*(2.0 + LengthErrorLimit));
-			}
-			else
-			{
-				IsAreaMatch = fabsf(ContourArea - TemplateTitleArea) / (TemplateTitleArea) <= fabs(LengthErrorLimit*(LengthErrorLimit - 2.0));
-			}
-
-
-			//Èç¹ûÉÏÊöÌõ¼ş¾ùÂú×ã£¬ÔòÈÏÎªµ±Ç°ÂÖÀªÎª±êÌâËù¶ÔÓ¦µÄÂÖÀª
-			if (IsWidthMatch && IsHeightMatch  && IsCenterXMatch &&IsCenterYMatch && IsAreaMatch)
-				////¶ÔÌáÈ¡µ½µÄÂÖÀª½øĞĞÉ¸Ñ¡
-				//if (
-				//	//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-				//	(fabs(ContourRectHeight / ContourRectWidth - TemplateTitleRatio ) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
-				//	//»òÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨ÄæÊ±ÕëÎª¸º£¬Ğı×ª½Ç¶ÈÎª-0¡«-1*AngleErrorLimit¶È£¬´ËÊ±ºá±ß±»Ê¶±ğÎª¿í£©
-				//	(fabs(ContourRectWidth / ContourRectHeight - TemplateTitleRatio) / TemplateTitleRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
-				//	//ÇÒÂÖÀªÃæ»ıÕ¼²ÃÇĞºóÊäÈëÍ¼Æ¬Ãæ»ıµÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ı(2+LengthErrorLimit)*LengthErrorLimit
-				//	(fabs(ContourRectArea / CroppedInputImageArea - TemplateTitleArea/TemplateArea) / (TemplateTitleArea/TemplateArea) <= (2+LengthErrorLimit)*LengthErrorLimit) &&
-				//	//ÇÒÂÖÀªÖĞĞÄÓë¸ù¾İÄ£°å¹À¼Æ³öÀ´µÄµãÔÚXÖáºÍYÖá·½ÏòÉÏµÄÎó²î±ÈÀı¾ù²»³¬¹ıLengthErrorLimit
-				//	(fabs(ContourRectCenterX - EstimatedTitleCenterX) / EstimatedTitleCenterX <= LengthErrorLimit) &&
-				//	(fabs(ContourRectCenterY - EstimatedTitleCenterY) / EstimatedTitleCenterY <= LengthErrorLimit)
-				//	)//Âú×ãÉÏÊöÌõ¼şÎÒÃÇ±ã½«´ËÂÖÀªµ±×÷±êÌâĞĞËùÔÚµÄÎ»ÖÃ
-			{
-				//½«FlagFoundTitleÖÃtrue±íÊ¾ÎÒÃÇÒÑ¾­ÕÒµ½ÁË±êÌâĞĞ¶ÔÓ¦µÄÂÖÀª
-				FlagFoundTitle = true;
-				//ÔÚÔ­Ê¼Í¼ÏñÉÏ»æÖÆ³öÕâÒ»ÂÖÀª
-				drawContours(ResizedImageMat,//»æÖÆ¶ÔÏó
-					AllContour,//ÂÖÀªµãÊı×é21
-					iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-					Scalar(255, 0, 0),//»æÖÆµÄÏßµÄÑÕÉ«£ºÀ¶É«
-					3,//»æÖÆµÄÏß¿í
-					CV_AA,//ÏßĞÍ£º¿¹»ìµş
-					ContourHierarchy,//ÂÖÀªµÄµÈ¼¶   00000.
-					0,//Ö»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-					Point(0, 0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
-				);
-				CropRect.height = int(ContourRectHeight / TemplateTitleHeight * TemplateHeight);
-				CropRect.width = TemplateRatio	* CropRect.height;
-
-				CropRect.x = int(ContourRectCenterX - (TemplateTitleCenterX / TemplateWidth)* CropRect.width);
-				CropRect.y = int(ContourRectCenterY - (TemplateTitleCenterY / TemplateWidth)* CropRect.height);
-
-
-
-				rectangle(ResizedImageMat,//»æÖÆ¾ØĞÎµÄ¶ÔÏó
-					CropRect, //Òª»æÖÆµÄ¾ØĞÎ
-					Scalar(255, 0, 0), //ÏßÌõµÄÑÕÉ«
-					3,//ÏßÌõ¿í¶È
-					CV_AA,//ÏßĞÍ£¨¿¹»ìµş£© 
-					0 //??×ø±êÊıÖµ£¨¶ş½øÖÆ£©µÄĞ¡ÊıÎ»Êı
-				);
-
-				imshow(WindowName, ResizedImageMat);
-				//waitKey(0);
-
-
-				//¸ù¾İÕÒµ½µÄ±êÌâÇøÓò¹À¼Æ³µÅÆºÅÇøÓòÖĞĞÄµã×ø±ê
-				EstimatedPlateCenterX = CropRect.x + (TemplatePlateCenterX) / TemplateWidth  * CropRect.width;
-				EstimatedPlateCenterY = CropRect.y + (TemplatePlateCenterY) / TemplateHeight * CropRect.height;
-				//EstimatedPlateWidth = TemplatePlateHeight/TemplateWidth * CropRect.width;
-				//EstimatedPlateHeight = TemplatePlateHeight/TemplateHeight * CropRect.height;
-
-			}
-
-			////Ë³Ê±ÕëÇãĞ±Çé¿ö
-			//if (ContourRectRotateAngle <= -90+AngleErrorLimit)
-			//{
-			//	//´Ó±êÌâĞĞÖĞĞÄË®Æ½ºÍ´¹Ö±·½ÏòÒÆ¶¯ÖÁ¹À¼ÆµÄ³µÅÆºÅ¶ÔÓ¦µÄÖĞĞÄµã
-			//	EstimatedPlateCenterX = ContourRectCenterX -
-			//		TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * cos(-1.0*ContourRectRotateAngle/180.0*pi);
-			//    EstimatedPlateCenterY = ContourRectCenterY + 
-			//		TemplateOffsetX/TemplateTitleHeight * ContourRectHeight * sin(-1.0*ContourRectRotateAngle/180.0*pi);
-			//}
-			//else if  (ContourRectRotateAngle >= -1*AngleErrorLimit)
-			//{
-			//	EstimatedPlateCenterX = ContourRectCenterX +
-			//		TemplateOffsetX/TemplateTitleWidth  * ContourRectWidth * sin(-1.0*ContourRectRotateAngle/180.0*pi);
-			//	EstimatedPlateCenterY = ContourRectCenterY + 
-			//		TemplateOffsetY/TemplateTitleHeight * ContourRectHeight * cos(-1.0*ContourRectRotateAngle/180.0*pi);
-			//}	
-
-
-			//Èç¹ûÕÒµ½ÁË±êÌâÇøÓò,Ôò¿ªÊ¼½øĞĞ³µÅÆÇøÓò¼ì²â
-			if (FlagFoundTitle == true)
-			{
-				//½«µü´úÆ÷¸³ÎªºòÑ¡×¼³µÅÆÇøÓòÂÖÀªĞòºÅÊı×éµÄ¿ªÍ·
-				itContour = PlateToBe.begin();
-
-				//µ±Î´ÕÒµ½³µÅÆÇøÓò»òÕß»¹ÓĞÇøÓòÎ´±»¼ì²âÊ±¼ÌĞøÑ­»·
-				while (FlagFoundPlate == false && itContour != PlateToBe.end())
+				SumTemp = 0;
+				for (int iRow = RisingRow[iConvexX]; iRow <= FallingRow[iConvexX]; iRow++)
 				{
-					//È¡µÃµ±Ç°Ñ­»·µÄÂÖÀªĞòºÅ
-					iContour = *(itContour);
-					//drawContours (ResizedImageMat,//»æÖÆ¶ÔÏó
-					//	AllContour,//ÂÖÀªµãÊı×é
-					//	iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-					//	Scalar(0,0,255),//»æÖÆµÄÏßµÄÑÕÉ«
-					//	1,//»æÖÆµÄÏß¿í
-					//	CV_AA,//ÏßĞÍ£º¿¹»ìµş
-					//	ContourHierarchy,//ÂÖÀªµÄµÈ¼¶
-					//	0,//Ö»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-					//	Point(0,0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
-					//	);
-
-					//imshow(WindowName,ResizedImageMat);
-					//waitKey(0);
-
-					ContourRect = minAreaRect(AllContour[iContour]);
-
-					//»ñÈ¡Íâ½Ó¾ØÕóµÄ¸ß¶È¡¢¿í¶È¡¢Ğı×ª½Ç¡¢Ãæ»ıºÍÖĞĞÄµãÎ»ÖÃ
-					ContourRectHeight = ContourRect.size.height;
-					ContourRectWidth = ContourRect.size.width;
-					ContourRectRotateAngle = ContourRect.angle;
-					//¼ÆËãÂÖÀª°üÎ§µÄÃæ»ı
-					ContourArea = contourArea(AllContour[iContour],//ÊäÈëÂÖÀª
-						false//ÊÇ·ñ¸ù¾İÂÖÀªµÄĞı×ª½Ç£¨Ë³Ê±Õë»¹ÊÇÄæÊ±Õë£©¼ÆËã´ø·ûºÅµÄÃæ»ıÖµ£¬ÕâÀïÑ¡·ñ
-					);
-					ContourRectCenterX = ContourRect.center.x;
-					ContourRectCenterY = ContourRect.center.y;
-
-					//½Ç¶È±ä»»ºÍ¿í¸ß½»»»
-					if (ContourRect.angle < -45.0)
-					{
-						ContourRectAngle = ContourRect.angle + 90.0;
-						swap(ContourRectWidth, ContourRectHeight);
-					}
-
-					//×¢Òâ£ºÒòÎªÇ°Ãæ×öÁËË®Æ½·½ÏòµÄÅòÕÍ²Ù×÷£¬ËùÒÔ¶ÔÕâÀï¿í¶È¼õÈ¥ÁËÒ»¸öÅòÕÍÔªµÄ¿í¶È
-					ContourRectWidth = ContourRectWidth - DilateElementWidth;
-
-					//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-					//IsRatioMatch = fabs(ContourRectWidth / ContourRectHeight  - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit ;
-					////»òÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨ÄæÊ±ÕëÎª¸º£¬Ğı×ª½Ç¶ÈÎª-0¡«-1*AngleErrorLimit¶È£¬´ËÊ±ºá±ß±»Ê¶±ğÎª¿í£©
-					//(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit);
-
-					////¿íºÍ¸ßÕ¼Í¼Æ¬µÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ıLengthErrorLimit
-					//IsWidthMatch = fabs(ContourRectWidth  / CroppedInputImageWidth  - TemplatePlateWidth/TemplateWidth) / (TemplatePlateWidth/TemplateWidth) <= LengthErrorLimit ;
-					//IsHeightMatch = fabs(ContourRectHeight / CroppedInputImageHeight  - TemplatePlateHeight/TemplateHeight) / (TemplatePlateHeight/TemplateHeight) <= LengthErrorLimit ;
-
-					//¼ì²âÂÖÀªÖĞĞÄÓë¸ù¾İÄ£°å¹À¼Æ³öÀ´µÄµãÔÚXÖáºÍYÖá·½ÏòÉÏµÄÎó²î±ÈÀıÊÇ·ñ¾ù²»³¬¹ıLengthErrorLimit
-					IsCenterXMatch = (fabsf(ContourRectCenterX - EstimatedPlateCenterX) / EstimatedTitleCenterX <= LengthErrorLimit);
-					IsCenterYMatch = (fabsf(ContourRectCenterY - EstimatedPlateCenterY) / EstimatedTitleCenterY <= LengthErrorLimit);
-
-					//Èç¹û¾ù²»³¬¹ı£¬ÔòÈÏÎªµ±Ç°ÂÖÀª¶ÔÓ¦³µÅÆºÅÂëËùÔÚµÄÇøÓò
-					if (IsCenterXMatch &&IsCenterYMatch)
-						//if (
-						//	//Èç¹ûÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨Ë³Ê±ÕëÎªÕı£¬Ğı×ª½Ç¶ÈÎª-90+AngleErrorLimit¡«-90¶È£¬´ËÊ±Êú±ß±»Ê¶±ğÎª¿í£©
-						//	(fabs(ContourRectHeight / ContourRectWidth - TemplatePlateRatio ) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle <= -90+AngleErrorLimit) ||
-						//	//»òÂÖÀªÍâ½Ó¾ØĞÎµÄ¿í¸ß±ÈºÍÄ£°åÏà²î±ÈÀı²»³¬¹ıLengthErrorLimit£¬Ë®Æ½ÇãĞ±²»³¬¹ıAngleErrorLimit¶È£¨ÄæÊ±ÕëÎª¸º£¬Ğı×ª½Ç¶ÈÎª-0¡«-1*AngleErrorLimit¶È£¬´ËÊ±ºá±ß±»Ê¶±ğÎª¿í£©
-						//	(fabs(ContourRectWidth / ContourRectHeight - TemplatePlateRatio) / TemplatePlateRatio <= LengthErrorLimit && ContourRectRotateAngle >= -1*AngleErrorLimit) &&
-						//	//ÇÒÂÖÀªÃæ»ıÕ¼²ÃÇĞºóÊäÈëÍ¼Æ¬Ãæ»ıµÄ±ÈÀıÓëÄ£°åÏà²î²»³¬¹ı(2+LengthErrorLimit)*LengthErrorLimit
-						//	(fabs(ContourRectArea / CroppedInputImageArea - TemplatePlateArea/TemplateArea) / (TemplatePlateArea/TemplateArea) <= (2+LengthErrorLimit)*LengthErrorLimit) &&
-						//	//ÇÒÂÖÀªÖĞĞÄÓë¸ù¾İÄ£°å¹À¼Æ³öÀ´µÄµãÔÚXÖáºÍYÖá·½ÏòÉÏµÄÎó²î±ÈÀı¾ù²»³¬¹ıLengthErrorLimit
-						//	(fabs(ContourRectCenterX - EstimatedPlateCenterX) / EstimatedPlateCenterX <= LengthErrorLimit) &&
-						//	(fabs(ContourRectCenterY - EstimatedPlateCenterY) / EstimatedPlateCenterY <= LengthErrorLimit)
-						//	)//Âú×ãÉÏÊöÌõ¼şÎÒÃÇ±ã½«´ËÂÖÀªµ±×÷³µÅÆºÅÂëËùÔÚµÄÎ»ÖÃ
-					{
-						//½«ÕÒµ½³µÅÆÇøÓòµÄ±êÖ¾±äÁ¿ÖÃtrue£¬±íÃ÷ÎÒÃÇÕÒµ½ÁË³µÅÆÇøÓò
-						FlagFoundPlate = true;
-						drawContours(ResizedImageMat,//»æÖÆ¶ÔÏó
-							AllContour,//ÂÖÀªµãÊı×é
-							iContour,//»æÖÆÂÖÀªµÄË÷Òı/ĞòºÅ
-							Scalar(0, 0, 255),//»æÖÆµÄÏßµÄÑÕÉ«
-							3,//»æÖÆµÄÏß¿í
-							CV_AA,//ÏßĞÍ£º¿¹»ìµş
-							ContourHierarchy,//ÂÖÀªµÄµÈ¼¶
-							0,//SÖ»»æÖÆµ±Ç°¼¶±ğµÄÂÖÀª
-							Point(0, 0)//ÂÖÀªÔÚË®Æ½ºÍ´¹Ö±·½ÏòµÄÆ«ÖÃ
-						);
-
-						CropRect.height = int(ContourRectHeight / TemplatePlateHeight * TemplateHeight);
-						CropRect.width = TemplateRatio	* CropRect.height;
-						CropRect.x = int(ContourRectCenterX - (TemplatePlateCenterX / TemplateWidth)* CropRect.width);
-						CropRect.y = int(ContourRectCenterY - (TemplatePlateCenterY / TemplateWidth)* CropRect.height);
-
-						rectangle(ResizedImageMat,//»æÖÆ¾ØĞÎµÄ¶ÔÏó
-							CropRect, //Òª»æÖÆµÄ¾ØĞÎ
-							Scalar(0, 0, 255), //ÏßÌõµÄÑÕÉ«
-							3,//ÏßÌõ¿í¶È
-							CV_AA,//ÏßĞÍ£¨¿¹»ìµş£© 
-							0 //??×ø±êÊıÖµ£¨¶ş½øÖÆ£©µÄĞ¡ÊıÎ»Êı
-						);
-
-
-					}
-					//½«µü´úÆ÷¼Ó1×ª¶ø¼ì²âÏÂÒ»¸öÂÖÀª
-					itContour++;
+					SumTemp += double(DilatedGradX.at<uchar>(iRow, iCol));
 				}
+				GradXProjectY.at<uchar>(0, iCol) = unsigned char(SumTemp / (FallingRow[iConvexX] - RisingRow[iConvexX]));
 			}
-			//½«ÂÖÀªË÷Òı¼Ó1¼ì²âÏÂÒ»¸öÂÖÀª
-			iContour++;
+
+
+
+			Mat BinaryGradXProjectY;
+			threshold(
+				GradXProjectY, //è¾“å…¥çŸ©é˜µ
+				BinaryGradXProjectY, //è¾“å‡ºçŸ©é˜µ
+				128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+				255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+				CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
+			);
+
+
+			Mat GradXProjectYStem(
+				DilatedGradX.rows,//çŸ©é˜µè¡Œæ•°
+				DilatedGradX.cols,//çŸ©é˜µåˆ—æ•°
+				CV_8UC1,//çŸ©é˜µå€¼çš„ç±»å‹ï¼ˆ8ä½æ— ç¬¦å·æ•´æ•°å•é€šé“ï¼‰
+				Scalar(0)//çŸ©é˜µå¡«å…¥çš„åˆå§‹å€¼
+			);
+			for (int iCol = 0; iCol < DilatedGradX.cols; iCol++)
+			{
+				if (BinaryGradXProjectY.at<uchar>(0, iCol) == 0)
+				{
+					StemColor = 100;
+				}
+				else
+				{
+					StemColor = 255;
+				}
+
+				for (int iRow = 0; iRow < GradXProjectY.at<uchar>(0, iCol) / 255.0*DilatedGradX.rows; iRow++)
+				{
+					GradXProjectYStem.at<uchar>(iRow, iCol) = StemColor;
+				}
+
+			}
+			//æ˜¾ç¤ºè¾¹ç¼˜äºŒå€¼å›¾åƒ
+			namedWindow(
+				"GradXProjectYStem",//çª—å£åç§°
+				CV_WINDOW_NORMAL//å»ºç«‹ä¸€ä¸ªæ ¹æ®å›¾ç‰‡è‡ªåŠ¨è®¾ç½®å¤§å°çš„çª—å£ï¼Œä½†ä¸èƒ½æ‰‹åŠ¨ä¿®æ”¹å°ºå¯¸
+			);
+			resizeWindow("GradXProjectYStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
+			imshow(
+				"GradXProjectYStem",
+				GradXProjectYStem
+			);
+
+
+			//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
+			waitKey(0);
+
+			int TextMinWidth = 10;
+			vector<int> RisingCol, FallingCol;
+			for (int iCol = 0; iCol < BinaryGradXProjectY.cols; iCol++)
+			{
+				if (iCol < BinaryGradXProjectY.cols - 2 && BinaryGradXProjectY.at<uchar>(0, iCol) == 0 && BinaryGradXProjectY.at<uchar>(0, iCol + 1) == 255)
+				{
+					RisingCol.push_back(iCol);
+				}
+				else if (iCol < BinaryGradXProjectY.cols - 1 && BinaryGradXProjectY.at<uchar>(0, iCol) == 255 && BinaryGradXProjectY.at<uchar>(0, iCol + 1) == 0)
+				{
+					if (RisingCol.size() - FallingCol.size() == 1)
+					{
+						if (iCol - RisingCol.back() >= TextMinWidth)
+						{
+							FallingCol.push_back(iCol);
+						}
+						else
+						{
+							RisingCol.pop_back();
+						}
+					}
+				}
+
+			}
+
+
+			if (RisingCol.size() != FallingCol.size() || RisingCol.size() == 0 || FallingCol.size() == 0)
+			{
+				cout << "Erorr: Unmatched sizes between RisingCol and FallingCol or empty vector RisingCol or FallingCol.";
+				return -1;
+			}
+
+			/*vector<int> Match = RisingCol;
+			for (int iConvexY = 0 ;iConvexY < RisingCol.size();iConvexY++)
+			{
+
+			}*/
+
+
+			//for (int iConvexY = 0 )
+			double TemplateTitleRatio = TemplateTitleWidth / TemplateTitleHeight;
+			double DetectedRatio = (FallingCol[iConvexY] - RisingCol[iConvexY] - DilateElementWidth) / (FallingRow[iConvexX] - RisingRow[iConvexX]);
+			double RatioErrorTolerance = 0.2;
+			bool FlagFoundTitle = false;
+			Rect EstimatedTitleRect;
+			if (fabsf(DetectedRatio - TemplateTitleRatio) / TemplateTitleRatio <= RatioErrorTolerance)
+			{
+				FlagFoundTitle = true;
+				EstimatedTitleRect.x = RisingRow[iConvexX] + DilateElementWidth / 2;
+				EstimatedTitleRect.y = RisingCol[iConvexY];
+				EstimatedTitleRect.width = FallingCol[iConvexY] - RisingCol[iConvexY] - DilateElementWidth;
+				EstimatedTitleRect.height = FallingRow[iConvexX] - RisingRow[iConvexX];
+
+				rectangle(RawImageMat,//ç»˜åˆ¶çŸ©å½¢çš„å¯¹è±¡
+					EstimatedTitleRect, //è¦ç»˜åˆ¶çš„çŸ©å½¢
+					Scalar(255, 0, 0), //çº¿æ¡çš„é¢œè‰²
+					3,//çº¿æ¡å®½åº¦
+					LINE_AA,//çº¿å‹ï¼ˆæŠ—æ··å ï¼‰ 
+					0 //??åæ ‡æ•°å€¼ï¼ˆäºŒè¿›åˆ¶ï¼‰çš„å°æ•°ä½æ•°
+				);
+				imshow(
+					MainWindowName,
+					RawImageMat
+				);
+				//ç­‰å¾…é”®ç›˜å“åº”ï¼Œå‚æ•°0è¡¨ç¤ºç­‰å¾…æ—¶é—´ä¸ºæ— é™é•¿
+				waitKey(0);
+
+			}
 		}
-		imshow(WindowName, ResizedImageMat);
 
-		//waitKey(0);
-
-		int SepPos = ImagePathList[iImage].rfind('\\');//rfind ·´Ïò²éÕÒ
-		string FolderPath = ImagePathList[iImage].substr(0, SepPos);
-		string ImageFileName = ImagePathList[iImage].substr(SepPos + 1, -1);
-		string OutputImagePath = OutputPath + "\\½á¹û" + ImageFileName;
-		imwrite(OutputImagePath, ResizedImageMat);
 	}
-	//·µ»Ø0²¢Õı³£ÍË³ö³ÌĞò
+	//è¿”å›0å¹¶æ­£å¸¸é€€å‡ºç¨‹åº
 	return 0;
 }
