@@ -15,10 +15,12 @@ using namespace cv;
 const double TemplateWidth = 550;
 const double TemplateHeight = 371;
 //模板图片标题所在区域的宽、高及区域中心的XY坐标
-const double TemplateTitleWidth = 340;
+const double TemplateTitleWidth = 355;
 const double TemplateTitleHeight = 36;
-const double TemplateTitleCenterX = 270;
+const double TemplateTitleCenterX = 269;
 const double TemplateTitleCenterY = 39;
+const double TemplateTitleGapHeight = 5;
+const double TemplateTitleGapWidth = 15;
 //模板图片车牌区域的宽、高及区域中心的XY坐标
 const double TemplatePlateWidth = 84;
 const double TemplatePlateHeight = 20;
@@ -196,110 +198,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//等待键盘响应，参数0表示等待时间为无限长
 		waitKey(0);
 
-		//创建X梯度投影向量
-		Mat  GradXProjectX(
-			BinaryGradX.rows,//矩阵行数
-			1,//矩阵列数
-			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-			Scalar(0)//矩阵填入的初始值
-		);
-
-		double SumTemp;
-		for (int iRow = 0; iRow < BinaryGradX.rows; iRow++)
-		{
-			SumTemp = 0;
-			for (int iCol = 0; iCol < BinaryGradX.cols; iCol++)
-			{
-				SumTemp += double(BinaryGradX.at<uchar>(iRow, iCol));
-			}
-			GradXProjectX.at<uchar>(iRow, 0) = unsigned char(SumTemp / BinaryGradX.cols);
-		}
+		int DilateElementWidth = 2 * int(TemplateTitleGapWidth / TemplateWidth*BinaryGradX.cols / 2.0) + 1;
 
 
-		Mat BinaryGradXProjectX;
-
-		threshold(
-			GradXProjectX, //输入矩阵
-			BinaryGradXProjectX, //输出矩阵
-			128, //迭代初始阈值
-			255, //最大值（超过阈值将设为此值）
-			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-		);
-
-		unsigned char StemColor;
-		Mat GradXProjectXStem(
-			GrayImageGradX.rows,//矩阵行数
-			GrayImageGradX.cols,//矩阵列数
-			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-			Scalar(0)//矩阵填入的初始值
-		);
-		for (int iRow = 0; iRow < GrayImageGradX.rows; iRow++)
-		{
-			if (BinaryGradXProjectX.at<uchar>(iRow, 0) == 0)
-			{
-				StemColor = 100;
-			}
-			else
-			{
-				StemColor = 255;
-			}
-
-			for (int iCol = 0; iCol < GradXProjectX.at<uchar>(iRow, 0) / 255.0*GrayImageGradX.cols; iCol++)
-			{
-				GradXProjectXStem.at<uchar>(iRow, iCol) = StemColor;
-			}
-
-		}
-		//显示边缘二值图像
-		namedWindow(
-			"GradXProjectXStem",//窗口名称
-			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		);
-		resizeWindow("GradXProjectXStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
-		imshow(
-			"GradXProjectXStem",
-			GradXProjectXStem
-		);
-
-
-		//等待键盘响应，参数0表示等待时间为无限长
-		waitKey(0);
-
-		int TextMinHeight = 10;
-		vector<int> RisingRow, FallingRow;
-		for (int iRow = 0; iRow < BinaryGradXProjectX.rows; iRow++)
-		{
-			if (iRow < BinaryGradXProjectX.rows - 2 && BinaryGradXProjectX.at<uchar>(iRow, 0) == 0 && BinaryGradXProjectX.at<uchar>(iRow + 1, 0) == 255)
-			{
-				RisingRow.push_back(iRow);
-			}
-			else if (iRow < BinaryGradXProjectX.rows - 1 && BinaryGradXProjectX.at<uchar>(iRow, 0) == 255 && BinaryGradXProjectX.at<uchar>(iRow + 1, 0) == 0)
-			{
-				if (RisingRow.size() - FallingRow.size() == 1)
-				{
-					if (iRow - RisingRow.back() >= TextMinHeight)
-					{
-						FallingRow.push_back(iRow);
-					}
-					else
-					{
-						RisingRow.pop_back();
-					}
-				}
-
-			}
-		}
-
-		if (RisingRow.size() != FallingRow.size() || RisingRow.size() == 0 || FallingRow.size() == 0)
-		{
-			cout << "Erorr: Unmatched sizes between RisingRow and FallingRow or empty vector RisingRow or FallingRow.";
-			return -1;
-		}
-
-
-		int DilateElementWidth = 2 * int(GrayImageMat.cols / 80) + 1;
-
-		//-----------------------------------------------------------
 		//构造膨胀操作的结构元，构建一个1行DilateElementWidth列的结构元以完成水平膨胀
 		Mat DilateElement = Mat(
 			1,//第一维（Y轴尺寸）
@@ -324,6 +225,148 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//等待键盘响应，参数0表示等待时间为无限长
 		waitKey(0);
 
+		//创建X梯度投影向量
+		Mat  GradXProjectY(
+			DilatedGradX.rows,//矩阵行数
+			1,//矩阵列数
+			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
+			Scalar(0)//矩阵填入的初始值
+		);
+
+		double SumTemp;
+		for (int iRow = 0; iRow < BinaryGradX.rows; iRow++)
+		{
+			SumTemp = 0;
+			for (int iCol = 0; iCol < BinaryGradX.cols; iCol++)
+			{
+				SumTemp += double(DilatedGradX.at<uchar>(iRow, iCol));
+			}
+			GradXProjectY.at<uchar>(iRow, 0) = unsigned char(SumTemp / BinaryGradX.cols);
+		}
+
+
+		Mat DilatedGradXProjectY;
+
+		threshold(
+			GradXProjectY, //输入矩阵
+			DilatedGradXProjectY, //输出矩阵
+			128, //迭代初始阈值
+			255, //最大值（超过阈值将设为此值）
+			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+		);
+
+		unsigned char StemColor;
+		Mat GradXProjectYStem(
+			GrayImageGradX.rows,//矩阵行数
+			GrayImageGradX.cols,//矩阵列数
+			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
+			Scalar(0)//矩阵填入的初始值
+		);
+		for (int iRow = 0; iRow < GrayImageGradX.rows; iRow++)
+		{
+			if (DilatedGradXProjectY.at<uchar>(iRow, 0) == 0)
+			{
+				StemColor = 100;
+			}
+			else
+			{
+				StemColor = 255;
+			}
+
+			for (int iCol = 0; iCol < GradXProjectY.at<uchar>(iRow, 0) / 255.0*GrayImageGradX.cols; iCol++)
+			{
+				GradXProjectYStem.at<uchar>(iRow, iCol) = StemColor;
+			}
+
+		}
+		//显示边缘二值图像
+		namedWindow(
+			"GradXProjectYStem",//窗口名称
+			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+		);
+		resizeWindow("GradXProjectYStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
+		imshow(
+			"GradXProjectYStem",
+			GradXProjectYStem
+		);
+
+
+		//等待键盘响应，参数0表示等待时间为无限长
+		waitKey(0);
+
+
+		double LicenseProportionXMin = 0.8;
+		double LicenseProportionXMax = 1.2;
+		double LicenseProportionYMin = 0.8;
+		double LicenseProportionYMax = 1.2;
+
+		double TitleMinHeight = DilatedGradX.rows*LicenseProportionYMin*(TemplateTitleHeight / TemplateHeight);
+		double TitleMaxHeight = DilatedGradX.rows*LicenseProportionYMax*(TemplateTitleHeight / TemplateHeight);
+		double TitleMaxGapHeight = DilatedGradX.rows*LicenseProportionYMax *(TemplateTitleGapHeight / TemplateHeight);
+
+		double TitleMinWidth = DilatedGradX.cols*LicenseProportionXMin*(TemplateTitleWidth / TemplateWidth);
+		double TitleMaxWidth = DilatedGradX.cols*LicenseProportionXMax*(TemplateTitleWidth / TemplateWidth);
+
+		vector<int> RisingRow, FallingRow;
+		vector<int> TitleRisingRow, TitleFallingRow, IndexTitleRisingRow, IndexTitileFallingRow;
+		DilatedGradXProjectY.at<uchar>(0, 0) = 0;
+		DilatedGradXProjectY.at<uchar>(DilatedGradXProjectY.rows - 1, 0) = 0;
+		for (int iRow = 0; iRow < DilatedGradXProjectY.rows; iRow++)
+		{
+			if (iRow < DilatedGradXProjectY.rows - 2 && DilatedGradXProjectY.at<uchar>(iRow, 0) == 0 && DilatedGradXProjectY.at<uchar>(iRow + 1, 0) == 255)
+			{
+				RisingRow.push_back(iRow);
+			}
+			else if (iRow > 0 && iRow < DilatedGradXProjectY.rows - 1 && DilatedGradXProjectY.at<uchar>(iRow, 0) == 255 && DilatedGradXProjectY.at<uchar>(iRow + 1, 0) == 0)
+			{
+				FallingRow.push_back(iRow);
+			}
+		}
+		if (RisingRow.size() != FallingRow.size() && RisingRow.size() == 0 || FallingRow.size() == 0)
+		{
+			cout << "Erorr: Unmatched sizes between RisingRow and FallingRow or empty vector RisingRow or FallingRow.";
+			return -1;
+		}
+
+		for (int iConvexY = 1; iConvexY <= RisingRow.size(); iConvexY++)
+		{
+			TitleRisingRow.push_back(RisingRow[iConvexY - 1]);
+			IndexTitleRisingRow.push_back(iConvexY - 1);
+			while (iConvexY < RisingRow.size() && RisingRow[iConvexY] - FallingRow[iConvexY - 1] <= TitleMaxGapHeight)
+			{
+				iConvexY++;
+			}
+			if (FallingRow[iConvexY - 1] - TitleRisingRow.back() >= TitleMinHeight &&
+				FallingRow[iConvexY - 1] - TitleRisingRow.back() <= TitleMaxHeight)
+			{
+				TitleFallingRow.push_back(FallingRow[iConvexY - 1]);
+				IndexTitileFallingRow.push_back(iConvexY - 1);
+			}
+			else
+			{
+				TitleRisingRow.pop_back();
+				IndexTitleRisingRow.pop_back();
+			}
+
+		}
+
+		//Rect TitleRect;
+		//vector <double> ErrorTitleSize;
+		//for (int iTitleRow = 0; iTitleRow < TitleRisingRow.size();iTitleRow++)
+		//{
+
+		//	ErrorTitleSize.push_back()
+
+		//	TitleRect.x = 0;
+		//	TitleRect.y = TitleRisingRow[iTitleRow];
+		//	TitleRect.width = DilatedGradX.cols;
+		//	TitleRect.height = TitleFallingRow[iTitleRow] - TitleRisingRow[iTitleRow];
+
+
+		//
+		//}
+
+
 		//Mat GrayImageGradY(GrayImageMat.rows, GrayImageMat.cols, CV_8UC1, Scalar(0));
 		//for (int iRow = 1; iRow < GrayImageMat.rows - 1; iRow++)
 		//{
@@ -334,13 +377,18 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//			+ abs(GrayImageMat.at<uchar>(iRow - 1, iCol + 1) - GrayImageMat.at<uchar>(iRow + 1, iCol + 1))) / 4;
 		//	}
 		//}
-		for (int iConvexX = 0; iConvexX < RisingRow.size(); iConvexX++)
+		bool FlagFoundTitle = false;
+
+		vector<Rect> EstimatedTitleRect;
+		vector<double> TitleSizeError;
+
+		for (int iConvexY = 0; iConvexY < TitleRisingRow.size(); iConvexY++)
 		{
 			Rect ProjectYRect;
 			ProjectYRect.x = 0;
-			ProjectYRect.y = RisingRow[iConvexX];
+			ProjectYRect.y = TitleRisingRow[iConvexY];
 			ProjectYRect.width = DilatedGradX.cols;
-			ProjectYRect.height = FallingRow[iConvexX] - RisingRow[iConvexX];
+			ProjectYRect.height = TitleFallingRow[iConvexY] - TitleRisingRow[iConvexY];
 			rectangle(DilatedGradX,//绘制矩形的对象
 				ProjectYRect, //要绘制的矩形
 				Scalar(100), //线条的颜色
@@ -360,8 +408,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 
 
-			//创建Y梯度投影向量
-			Mat  GradXProjectY(
+			//创建X梯度X方向投影向量
+			Mat  GradXProjectX(
 				1,//矩阵行数
 				DilatedGradX.cols,//矩阵列数
 				CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
@@ -372,26 +420,24 @@ int main(int ArgumentCount, char** ArgumentVector)
 			for (int iCol = 0; iCol < DilatedGradX.cols; iCol++)
 			{
 				SumTemp = 0;
-				for (int iRow = RisingRow[iConvexX]; iRow <= FallingRow[iConvexX]; iRow++)
+				for (int iRow = RisingRow[iConvexY]; iRow <= FallingRow[iConvexY]; iRow++)
 				{
 					SumTemp += double(DilatedGradX.at<uchar>(iRow, iCol));
 				}
-				GradXProjectY.at<uchar>(0, iCol) = unsigned char(SumTemp / (FallingRow[iConvexX] - RisingRow[iConvexX]));
+				GradXProjectX.at<uchar>(0, iCol) = unsigned char(SumTemp / (FallingRow[iConvexY] - RisingRow[iConvexY]));
 			}
 
-
-
-			Mat BinaryGradXProjectY;
+			Mat BinaryGradXProjectX;
 			threshold(
-				GradXProjectY, //输入矩阵
-				BinaryGradXProjectY, //输出矩阵
+				GradXProjectX, //输入矩阵
+				BinaryGradXProjectX, //输出矩阵
 				128, //迭代初始阈值
 				255, //最大值（超过阈值将设为此值）
 				CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 			);
 
 
-			Mat GradXProjectYStem(
+			Mat GradXProjectXStem(
 				DilatedGradX.rows,//矩阵行数
 				DilatedGradX.cols,//矩阵列数
 				CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
@@ -399,7 +445,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 			for (int iCol = 0; iCol < DilatedGradX.cols; iCol++)
 			{
-				if (BinaryGradXProjectY.at<uchar>(0, iCol) == 0)
+				if (BinaryGradXProjectX.at<uchar>(0, iCol) == 0)
 				{
 					StemColor = 100;
 				}
@@ -408,95 +454,118 @@ int main(int ArgumentCount, char** ArgumentVector)
 					StemColor = 255;
 				}
 
-				for (int iRow = 0; iRow < GradXProjectY.at<uchar>(0, iCol) / 255.0*DilatedGradX.rows; iRow++)
+				for (int iRow = 0; iRow < GradXProjectX.at<uchar>(0, iCol) / 255.0*DilatedGradX.rows; iRow++)
 				{
-					GradXProjectYStem.at<uchar>(iRow, iCol) = StemColor;
+					GradXProjectXStem.at<uchar>(iRow, iCol) = StemColor;
 				}
 
 			}
 			//显示边缘二值图像
 			namedWindow(
-				"GradXProjectYStem",//窗口名称
+				"GradXProjectXStem",//窗口名称
 				CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
 			);
-			resizeWindow("GradXProjectYStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
+			resizeWindow("GradXProjectXStem", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
 			imshow(
-				"GradXProjectYStem",
-				GradXProjectYStem
+				"GradXProjectXStem",
+				GradXProjectXStem
 			);
 
 
 			//等待键盘响应，参数0表示等待时间为无限长
 			waitKey(0);
 
-			int TextMinWidth = 10;
+
+
 			vector<int> RisingCol, FallingCol;
-			for (int iCol = 0; iCol < BinaryGradXProjectY.cols; iCol++)
+			BinaryGradXProjectX.at<uchar>(0, 0) = 0;
+			BinaryGradXProjectX.at<uchar>(0, DilatedGradX.cols - 1) = 0;
+  			for (int iCol = 0; iCol < BinaryGradXProjectX.cols; iCol++)
 			{
-				if (iCol < BinaryGradXProjectY.cols - 2 && BinaryGradXProjectY.at<uchar>(0, iCol) == 0 && BinaryGradXProjectY.at<uchar>(0, iCol + 1) == 255)
+				if (iCol < BinaryGradXProjectX.cols - 2 && BinaryGradXProjectX.at<uchar>(0, iCol) == 0 && BinaryGradXProjectX.at<uchar>(0, iCol + 1) == 255)
 				{
 					RisingCol.push_back(iCol);
 				}
-				else if (iCol < BinaryGradXProjectY.cols - 1 && BinaryGradXProjectY.at<uchar>(0, iCol) == 255 && BinaryGradXProjectY.at<uchar>(0, iCol + 1) == 0)
+				else if (iCol < BinaryGradXProjectX.cols - 1 && BinaryGradXProjectX.at<uchar>(0, iCol) == 255 && BinaryGradXProjectX.at<uchar>(0, iCol + 1) == 0)
 				{
 					if (RisingCol.size() - FallingCol.size() == 1)
 					{
-						if (iCol - RisingCol.back() >= TextMinWidth)
-						{
-							FallingCol.push_back(iCol);
-						}
-						else
-						{
-							RisingCol.pop_back();
-						}
+
+						FallingCol.push_back(iCol);
+					}
+					else
+					{
+						RisingCol.pop_back();
 					}
 				}
-
 			}
-
 
 			if (RisingCol.size() != FallingCol.size() || RisingCol.size() == 0 || FallingCol.size() == 0)
 			{
 				cout << "Erorr: Unmatched sizes between RisingCol and FallingCol or empty vector RisingCol or FallingCol.";
 				return -1;
 			}
-
-			/*vector<int> Match = RisingCol;
-			for (int iConvexY = 0 ;iConvexY < RisingCol.size();iConvexY++)
+			vector<int> TitleRisingCol, TitleFallingCol, IndexTitleRisingCol, IndexTitileFallingCol;
+			for (int iConvexX = 1; iConvexX <= RisingCol.size(); iConvexX++)
 			{
-
-			}*/
-
-
-			//for (int iConvexY = 0 )
-			double TemplateTitleRatio = TemplateTitleWidth / TemplateTitleHeight;
-			double DetectedRatio = (FallingCol[iConvexY] - RisingCol[iConvexY] - DilateElementWidth) / (FallingRow[iConvexX] - RisingRow[iConvexX]);
-			double RatioErrorTolerance = 0.2;
-			bool FlagFoundTitle = false;
-			Rect EstimatedTitleRect;
-			if (fabsf(DetectedRatio - TemplateTitleRatio) / TemplateTitleRatio <= RatioErrorTolerance)
-			{
-				FlagFoundTitle = true;
-				EstimatedTitleRect.x = RisingRow[iConvexX] + DilateElementWidth / 2;
-				EstimatedTitleRect.y = RisingCol[iConvexY];
-				EstimatedTitleRect.width = FallingCol[iConvexY] - RisingCol[iConvexY] - DilateElementWidth;
-				EstimatedTitleRect.height = FallingRow[iConvexX] - RisingRow[iConvexX];
-
-				rectangle(RawImageMat,//绘制矩形的对象
-					EstimatedTitleRect, //要绘制的矩形
-					Scalar(255, 0, 0), //线条的颜色
-					3,//线条宽度
-					LINE_AA,//线型（抗混叠） 
-					0 //??坐标数值（二进制）的小数位数
-				);
-				imshow(
-					MainWindowName,
-					RawImageMat
-				);
-				//等待键盘响应，参数0表示等待时间为无限长
-				waitKey(0);
+				TitleRisingCol.push_back(RisingCol[iConvexX - 1]);
+				IndexTitleRisingCol.push_back(iConvexX - 1);
+				while (iConvexX < RisingCol.size() && RisingCol[iConvexX] - FallingCol[iConvexX - 1] <= TitleMaxGapHeight)
+				{
+					iConvexX++;
+				}
+				if (FallingCol[iConvexX - 1] - TitleRisingCol.back() >= TitleMinWidth &&
+					FallingCol[iConvexX - 1] - TitleRisingCol.back() <= TitleMaxWidth)
+				{
+					TitleFallingCol.push_back(FallingCol[iConvexX - 1]);
+					IndexTitileFallingCol.push_back(iConvexX - 1);
+				}
+				else
+				{
+					TitleRisingCol.pop_back();
+					IndexTitleRisingCol.pop_back();
+				}
 
 			}
+
+			Rect TempTitleRect;
+			for (int iConvexX = 0; iConvexX < TitleRisingCol.size(); iConvexX++)
+			{
+				TempTitleRect.x = TitleRisingCol[iConvexX] + DilateElementWidth/2;
+				TempTitleRect.y = TitleRisingRow[iConvexY] ;
+				TempTitleRect.width = TitleFallingCol[iConvexX] - TitleRisingCol[iConvexX] - DilateElementWidth;
+				TempTitleRect.height = TitleFallingRow[iConvexY] - TitleRisingRow[iConvexY];
+
+				EstimatedTitleRect.push_back(TempTitleRect);
+				TitleSizeError.push_back(fabs(TempTitleRect.width - TemplateTitleWidth*DilatedGradX.cols / TemplateWidth)*
+					fabs(TempTitleRect.width - TemplateTitleWidth*DilatedGradX.cols / TemplateWidth) +
+					fabs(TempTitleRect.height - TemplateTitleHeight*DilatedGradX.rows / TemplateHeight)*
+					fabs(TempTitleRect.height - TemplateTitleHeight*DilatedGradX.rows / TemplateHeight));
+
+			}
+
+		}
+		if (TitleSizeError.size() > 0)
+		{
+			FlagFoundTitle = true;
+			vector<double>::iterator itMinTitleSizeError = min_element(TitleSizeError.begin(), TitleSizeError.end());
+			int64 IndexMinTitleSizeError = distance(TitleSizeError.begin(), itMinTitleSizeError);
+
+			Rect MinErrorTitleRect = EstimatedTitleRect[IndexMinTitleSizeError];
+
+			rectangle(RawImageMat,//绘制矩形的对象
+				MinErrorTitleRect, //要绘制的矩形
+				Scalar(255, 0, 0), //线条的颜色
+				3,//线条宽度
+				LINE_AA,//线型（抗混叠） 
+				0 //??坐标数值（二进制）的小数位数
+			);
+			imshow(
+				MainWindowName,
+				RawImageMat
+			);
+			//等待键盘响应，参数0表示等待时间为无限长
+			waitKey(0);
 		}
 
 	}
