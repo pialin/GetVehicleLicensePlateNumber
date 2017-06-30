@@ -140,15 +140,23 @@ int main(int ArgumentCount, char** ArgumentVector)
 		const char* MainWindowName = "get plate number from vehicle license";
 
 
-		////创建相应的窗口
-		//namedWindow(
-		//	MainWindowName,//窗口名称
-		//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		//);
-		////将图片窗口设置为固定高度500像素，且不改变图像的宽高比
-		//double WindowHeight = 500.0;
-		//resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
+		//创建相应的窗口
+		namedWindow(
+			MainWindowName,//窗口名称
+			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+		);
+		//将图片窗口设置为固定高度500像素，且不改变图像的宽高比
+		double WindowHeight = 500.0;
+		resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
+		//在上述窗口中显示灰阶化的图像
+		imshow(
+			MainWindowName,//希望绘制图片的窗口名称
+			Raw_GrayImage//希望绘制的图片矩阵
+		);
+
+		//等待键盘响应（按下任意键），参数0表示等待时间为无限长
+		waitKey(0);
 
 		//对图像进行高斯模糊
 		//设置高斯模糊核尺寸(必须为正奇数)
@@ -165,7 +173,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			BORDER_DEFAULT //??像素插值方式 
 		);
 
-		//在上述窗口中显示高斯模糊后的图像
+		////在上述窗口中显示高斯模糊后的图像
 		//imshow(
 		//	MainWindowName,//希望绘制图片的窗口名称
 		//	Gray_BlurImage//希望绘制的图片矩阵
@@ -211,13 +219,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 		);
 
 		//显示边缘二值图像
-		//imshow(
-		//	MainWindowName,
-		//	BinaryGradX
-		//);
+		imshow(
+			MainWindowName,
+			BinaryGradX
+		);
 
-		////等待键盘响应，参数0表示等待时间为无限长
-		//waitKey(0);
+		//等待键盘响应，参数0表示等待时间为无限长
+		waitKey(0);
 
 		//设置水平膨胀结构元的宽度
 		int DilateXElementWidth = 2 * int(TemplateTitleGapWidth / TemplateWidth*BinaryGradX.cols / 2.0) + 1;
@@ -315,29 +323,29 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 
 
-		////显示边缘二值图像
-		//namedWindow(
-		//	"ProjectYGradX_StemFigure",//窗口名称
-		//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		//);
-		////将窗口变为高度为WindowHeight，宽高比不变
-		//resizeWindow("ProjectYGradX_StemFigure", int(WindowHeight * GrayImageMat.cols / GrayImageMat.rows), int(WindowHeight));
-		//imshow(
-		//	"ProjectYGradX_StemFigure",
-		//	ProjectYGradX_StemFigure
-		//);
-		////等待键盘响应，参数0表示等待时间为无限长
-		//waitKey(0);
+		//显示边缘二值图像
+		namedWindow(
+			"ProjectYGradX_StemFigure",//窗口名称
+			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+		);
+		//将窗口变为高度为WindowHeight，宽高比不变
+		resizeWindow("ProjectYGradX_StemFigure", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
+		imshow(
+			"ProjectYGradX_StemFigure",
+			ProjectYGradX_StemFigure
+		);
+		//等待键盘响应，参数0表示等待时间为无限长
+		waitKey(0);
 
 		//设置行驶证的比例限制范围
 		//水平方向至少占据宽度的60%
 		double LicenseProportionXMin = 0.6;
 		//水平方向至多达到宽度的110%
-		double LicenseProportionXMax = 1.1;
+		double LicenseProportionXMax = 1.2;
 		//垂直方向至少占据高度的60%
 		double LicenseProportionYMin = 0.6;
 		//垂直方向至多达到宽度的110%
-		double LicenseProportionYMax = 1.1;
+		double LicenseProportionYMax = 1.2;
 
 		//根据比例限制范围计算标题区域的高度可能范围
 		double TitleMinHeight = InputImageHeight*LicenseProportionYMin*(TemplateTitleHeight / TemplateHeight);
@@ -427,15 +435,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 			ProjectYPassRect.height = TitleFallingRow[iConvexY] - TitleRisingRow[iConvexY];
 			
 
-			////在Stem图上绘制上述矩形
-			//rectangle(
-			//	ProjectYGradX_StemFigure,//绘制矩形的对象
-			//	ProjectYPassRect, //要绘制的矩形
-			//	Scalar(255), //线条的颜色:白色
-			//	int(InputImageHeight/200.0),//线条宽度
-			//	LINE_AA,//线型（抗混叠） 
-			//	0 //??坐标数值（二进制）的小数位数
-			//);
+			//在Stem图上绘制上述矩形
+			rectangle(
+				ProjectYGradX_StemFigure,//绘制矩形的对象
+				ProjectYPassRect, //要绘制的矩形
+				Scalar(255), //线条的颜色:白色
+				int(InputImageHeight/200.0),//线条宽度
+				LINE_AA,//线型（抗混叠） 
+				0 //??坐标数值（二进制）的小数位数
+			);
 
 
 			//创建存储X梯度X方向投影的矩阵
@@ -503,19 +511,19 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 			}
 
-			////新建绘图窗口用于绘制垂直投影梯度Stem图
-			//namedWindow(
-			//	"ProjectXGradX_StemFigure",//窗口名称
-			//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-			//);
-			////设置窗口尺寸使其高度为WindowHeight，宽高比与输入图像一致
-			//resizeWindow("ProjectXGradX_StemFigure", int(WindowHeight * InputImageWidth/ InputImageHeight), int(WindowHeight));
-			//imshow(
-			//	"ProjectXGradX_StemFigure",
-			//	ProjectXGradX_StemFigure
-			//);
-			////等待键盘响应，参数0表示等待时间为无限长
-			//waitKey(0);
+			//新建绘图窗口用于绘制垂直投影梯度Stem图
+			namedWindow(
+				"ProjectXGradX_StemFigure",//窗口名称
+				CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+			);
+			//设置窗口尺寸使其高度为WindowHeight，宽高比与输入图像一致
+			resizeWindow("ProjectXGradX_StemFigure", int(WindowHeight * InputImageWidth/ InputImageHeight), int(WindowHeight));
+			imshow(
+				"ProjectXGradX_StemFigure",
+				ProjectXGradX_StemFigure
+			);
+			//等待键盘响应，参数0表示等待时间为无限长
+			waitKey(0);
 
 
 			//创建用于存储标题部分水平方向上升沿和下降沿所在列数据的向量
@@ -603,13 +611,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 					0 //??坐标数值（二进制）的小数位数
 				);
 
-				////显示带标题区域检测框原始图像
-				//imshow(
-				//	MainWindowName,
-				//	RawImage
-				//);
+				//显示带标题区域检测框原始图像
+				imshow(
+					MainWindowName,
+					RawImage
+				);
 				//等待键盘响应，参数0表示等待时间为无限长
-				//waitKey(0);
+				waitKey(0);
 			}
 			
 		}
