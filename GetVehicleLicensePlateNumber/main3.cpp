@@ -278,7 +278,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 				SumTemp += double(Binary_DilateXGradX.at<uchar>(iRow, iCol));
 			}
 			//求叠加值的均值作为水平投影后的梯度值
-			DilateX_ProjectYGradX.at<uchar>(iRow, 0) = unsigned char(SumTemp / Binary_DilateXGradX.cols);
+			DilateX_ProjectYGradX.at<uchar>(iRow, 0) = unsigned char(SumTemp / InputImageWidth);
 		}
 
 
