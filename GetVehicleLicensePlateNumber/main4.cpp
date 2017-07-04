@@ -5,10 +5,11 @@
 #include <iostream>
 //添加算法库头文件
 #include<algorithm>//为了使用swap
+#include<numeric>//为了使用iota
 //添加数学运算库头文件
 //#include <cmath>
 
-#define NUMPEAK 9
+#define NUMPEAK 100
 
 //使用C++标准库命名空间
 using namespace std;
@@ -36,6 +37,22 @@ const double TemplatePlateWidth = 174;
 const double TemplatePlateHeight = 41;
 const double TemplatePlateCenterX = 271;
 const double TemplatePlateCenterY = 166;
+
+template <typename SortIndexInputType>
+vector<size_t> PartialSortIndex(const vector<SortIndexInputType> &InputVector) {
+
+	// initialize original index locations
+	vector<size_t> IndexVector(InputVector.size());
+	iota(IndexVector.begin(), IndexVector.end(), 0);
+
+	// sort indexes based on comparing values in v
+	partial_sort(IndexVector.begin(), 
+		(IndexVector.begin()+ NUMPEAK)<IndexVector.end()? (IndexVector.begin() + NUMPEAK): IndexVector.end(),
+		IndexVector.end(),
+		[&InputVector](size_t x, size_t y) {return InputVector[x] > InputVector[y]; });
+
+	return IndexVector;
+}
 
 
 //主函数，输入命令行参数：
@@ -150,7 +167,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
 		);
 		//将图片窗口设置为固定高度500像素，且不改变图像的宽高比
-		double WindowHeight = 500.0;
+		double WindowHeight = 700.0;
 		resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
 		imshow(
@@ -159,6 +176,19 @@ int main(int ArgumentCount, char** ArgumentVector)
 		);
 
 		waitKey(0);
+
+
+		//设置行驶证的比例限制范围
+		//水平方向至少占据宽度的60%
+		double LicenseProportionXMin = 0.6;
+		//水平方向至多达到宽度的110%
+		double LicenseProportionXMax = 1.2;
+		//垂直方向至少占据高度的60%
+		double LicenseProportionYMin = 0.6;
+		//垂直方向至多达到宽度的110%
+		double LicenseProportionYMax = 1.2;
+
+
 
 		//创建矩阵用于存放图像X方向的梯度值
 		Mat GrayImage_GradY(
@@ -220,140 +250,86 @@ int main(int ArgumentCount, char** ArgumentVector)
 			Scalar(0)//矩阵填入的初始值
 		);
 		int TempDiff;
-		int DiffGradY_TopNPeakAmp[NUMPEAK+1] = { 0 };
-		int DiffGradY_TopNPeakIndex[NUMPEAK+1] = { 0 };
+		vector<int> DiffGradY_PeakAmp;
+		vector<size_t> DiffGradY_PeakIndex;
+
+
  		for(int iRow=1;iRow<InputImageHeight-1;iRow++)
 		{
 			TempDiff = Binary_ProjectYGradY.at<uchar>(iRow, 0) - Binary_ProjectYGradY.at<uchar>(iRow - 1, 0);
 			if (TempDiff > 0)
 			{
 				ProjectY_DiffGradY.at<int>(iRow, 0) = TempDiff;
-				DiffGradY_TopNPeakAmp[0] = TempDiff;
-				DiffGradY_TopNPeakIndex[0] = iRow;
-				for (int iPeak = 0;iPeak<NUMPEAK;iPeak++)
+				DiffGradY_PeakAmp.push_back(TempDiff);
+				DiffGradY_PeakIndex.push_back(iRow);
+			}
+		}
+		vector<size_t> PartialSortPeakIndex = PartialSortIndex(DiffGradY_PeakAmp);
+		bool FlagIgnorePeak = false;
+		vector<size_t> PartialSort_FilterPeakIndex;
+		vector<int> PartialSort_FilterPeakAmp;
+		double MinPeakDistance = 50;
+ 		PartialSort_FilterPeakIndex.push_back(DiffGradY_PeakIndex[PartialSortPeakIndex[0]]);
+		PartialSort_FilterPeakAmp.push_back(DiffGradY_PeakAmp[PartialSortPeakIndex[0]]);
+		for (size_t iPeak = 1; iPeak < NUMPEAK && iPeak < DiffGradY_PeakIndex.size(); iPeak++)
+		{
+			for (size_t jPeak = 0; jPeak < PartialSort_FilterPeakIndex.size(); jPeak++)
+			{
+				if (abs(double(DiffGradY_PeakIndex[PartialSortPeakIndex[iPeak]]) - double(PartialSort_FilterPeakIndex[jPeak])) < MinPeakDistance)
 				{
-					if(DiffGradY_TopNPeakAmp[iPeak] > DiffGradY_TopNPeakAmp[iPeak+1])
-					{
-						swap(DiffGradY_TopNPeakAmp[iPeak], DiffGradY_TopNPeakAmp[iPeak + 1]);
-						swap(DiffGradY_TopNPeakIndex[iPeak], DiffGradY_TopNPeakIndex[iPeak + 1]);
-					}
-					else
-					{
-						break;
-					}
-
+					FlagIgnorePeak = true;
+					break;
 				}
+			}
+			if (FlagIgnorePeak == true)
+			{
+				FlagIgnorePeak = false;
+			}
+			else
+			{
+				PartialSort_FilterPeakIndex.push_back(DiffGradY_PeakIndex[PartialSortPeakIndex[iPeak]]);
+				PartialSort_FilterPeakAmp.push_back(DiffGradY_PeakAmp[PartialSortPeakIndex[iPeak]]);
 			}
 		}
 		
-		int TopN_SortPeakAmp[NUMPEAK];
-		int TopN_SortPeakIndex[NUMPEAK];
-		for (int iPeak1 = 1; iPeak1 < NUMPEAK+1;iPeak1++)
-		{
-			for (int iPeak2 = iPeak1; iPeak2 < NUMPEAK ; iPeak2++)
-			{
-				if (DiffGradY_TopNPeakIndex[iPeak2] > DiffGradY_TopNPeakIndex[iPeak2+1])
-				{
-					swap(DiffGradY_TopNPeakIndex[iPeak2], DiffGradY_TopNPeakIndex[iPeak2 + 1]);
-				}
-				else
-				{
-					break;
-				}
-
-			}
-		}
-		for (int iPeak = 1; iPeak < NUMPEAK + 1; iPeak++)
-		{
-			TopN_SortPeakIndex[iPeak - 1] = DiffGradY_TopNPeakIndex[iPeak];
-			TopN_SortPeakAmp[iPeak - 1] = ProjectY_DiffGradY.at<int>(TopN_SortPeakIndex[iPeak - 1], 0);
-		}
- 		Mat  DiffGradY_StemFigure(
+ 		Mat  FilterPeakIndex_StemFigure(
 			int(InputImageHeight),//矩阵行数
 			int(InputImageWidth),//矩阵列数
 			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
 			Scalar(0)//矩阵填入的初始值
 		);
-		//绘制Stem图时茎的颜色
-		unsigned char StemColor;
-		//绘制水平梯度水平投影后的Stem图
-		for (int iRow = 0; iRow < InputImageHeight; iRow++)
-		{
-			StemColor = 100;
-			for (int iPeak = 0; iPeak < NUMPEAK; iPeak++)
-			{
-				if (iRow == TopN_SortPeakIndex[iPeak])
-				{
-					StemColor = 255;
-					break;
-				}
-			}
-			////根据二值化结果决定Stem图茎的颜色，若为0，使用灰色代表该行投影值小于阈值
-			//if (ProjectY_BinaryGradY.at<uchar>(iRow, 0) == 0)
-			//{
-			//	StemColor = 100;
-			//}
-			////若为255，则用白色代表该行投影值大于阈值
-			//else
-			//{
-			//	StemColor = 255;
-			//}
-			//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
-			if (ProjectY_DiffGradY.at<int>(iRow, 0) > 0)
-			{
-				for (int iCol = 0; iCol < ProjectY_DiffGradY.at<int>(iRow, 0) / 255.0*InputImageWidth; iCol++)
-				{
-					DiffGradY_StemFigure.at<uchar>(iRow, iCol) = StemColor;
-				}
-			}
+		
 
+		sort(PartialSort_FilterPeakIndex.begin(), PartialSort_FilterPeakIndex.end());
+		
+		vector<double> Filter_DiffPeakIndex(PartialSort_FilterPeakIndex.size()-1);
+		for (size_t iPeak = 1;
+			iPeak < PartialSort_FilterPeakIndex.size();
+			iPeak++)
+		{
+			Filter_DiffPeakIndex[iPeak - 1] = PartialSort_FilterPeakIndex[iPeak] - PartialSort_FilterPeakIndex[iPeak-1];
 		}
 
+		sort(Filter_DiffPeakIndex.begin(), Filter_DiffPeakIndex.end());
 
-		//显示边缘二值图像
-		namedWindow(
-			"ProjectYGradY_StemFigure",//窗口名称
-			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		);
-		//将窗口变为高度为WindowHeight，宽高比不变
-		resizeWindow("ProjectYGradY_StemFigure", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
-		imshow(
-			"ProjectYGradY_StemFigure",
-			DiffGradY_StemFigure
-		);
-		//等待键盘响应，参数0表示等待时间为无限长
+		double EstimatedLineGapWidth;
+		if (Filter_DiffPeakIndex.size() % 2 == 1)
+		{
+			EstimatedLineGapWidth = Filter_DiffPeakIndex[Filter_DiffPeakIndex.size() / 2];
+		}
+		else
+		{
+			EstimatedLineGapWidth = (Filter_DiffPeakIndex[(Filter_DiffPeakIndex.size()) / 2-1] +
+				Filter_DiffPeakIndex[(Filter_DiffPeakIndex.size()) / 2 ])/2;
+		}
+		for (vector<size_t>::iterator itLine = PartialSort_FilterPeakIndex.begin();
+			itLine != PartialSort_FilterPeakIndex.end();
+			itLine++)
+		{
+			RawImage(Range(*itLine-1,*itLine+1),Range::all()) = Scalar(0, 0, 255);
+		}
+		imshow(MainWindowName, RawImage);
 		waitKey(0);
-
-		//设置行驶证的比例限制范围
-		//水平方向至少占据宽度的60%
-		double LicenseProportionXMin = 0.6;
-		//水平方向至多达到宽度的110%
-		double LicenseProportionXMax = 1.2;
-		//垂直方向至少占据高度的60%
-		double LicenseProportionYMin = 0.6;
-		//垂直方向至多达到宽度的110%
-		double LicenseProportionYMax = 1.2;
-
-		//根据比例限制范围计算标题区域的高度可能范围
-		double TitleMinHeight = InputImageHeight*LicenseProportionYMin*(TemplateTitleHeight / TemplateHeight);
-		double TitleMaxHeight = InputImageHeight*LicenseProportionYMax*(TemplateTitleHeight / TemplateHeight);
-		//根据比例限制计算标题部分垂直缝隙最大高度
-		double TitleMaxGapHeight = InputImageHeight*LicenseProportionYMax *(TemplateTitleGapHeight / TemplateHeight);
-		//根据比例限制计算标题部分英文习题的可能范围
-		double TitleMinEnglishHeight = InputImageHeight*LicenseProportionYMin *(TemplateTitleEnglishHeight / TemplateHeight);
-		double TitleMaxEnglishHeight = InputImageHeight*LicenseProportionYMax *(TemplateTitleEnglishHeight / TemplateHeight);
-		//根据比例限制计算标题区域的宽度可能范围
-		double TitleMinWidth = InputImageWidth*LicenseProportionXMin*(TemplateTitleWidth / TemplateWidth);
-		double TitleMaxWidth = InputImageWidth*LicenseProportionXMax*(TemplateTitleWidth / TemplateWidth);
-		//根据比例限制计算标题部分水平缝隙最大宽度
-		double TitleMaxGapWidth = InputImageWidth*LicenseProportionXMax *(TemplateTitleGapWidth / TemplateWidth);
-
-		//创建向量存储二值化后水平投影的上升沿和下降沿所在行
-		vector<int> RisingRow, FallingRow;
-		//创建向量存储二值化后标题部分水平投影的上升沿和下降沿所在行
-		vector<int> TitleRisingRow, TitleFallingRow, IndexTitleRisingRow, IndexTitleFallingRow;
-
-		
 	}
 	//返回0并正常退出程序
 	return 0;
