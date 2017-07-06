@@ -122,15 +122,39 @@ int main(int ArgumentCount, char** ArgumentVector)
 		XMLDocument XmlDoc;
 		XmlDoc.LoadFile(XmlFilePath.c_str());
 		XMLElement *LabelElement = XmlDoc.FirstChildElement("annotation")->FirstChildElement("object");
-		XMLElement *LabelNameElement = LabelElement->FirstChildElement("name");
-		String LabelName = LabelNameElement->GetText();
-		XMLElement *LabelRectElement = LabelElement->FirstChildElement("bndbox");
-		Rect LabelRect;
-		LabelRect.x = atoi(LabelRectElement->FirstChildElement("xmin")->GetText());
-		LabelRect.y = atoi(LabelRectElement->FirstChildElement("ymin")->GetText());
-		LabelRect.width = atoi(LabelRectElement->FirstChildElement("xmax")->GetText())- LabelRect.x;
-		LabelRect.height = atoi(LabelRectElement->FirstChildElement("ymax")->GetText())- LabelRect.y;
+		bool IsPlateRowRectFound = false;
+		Rect PlateRowRect;
+		while (LabelElement)
+		{ 
 
+			XMLElement *LabelNameElement = LabelElement->FirstChildElement("name");
+			String LabelName = LabelNameElement->GetText();
+			
+			if (LabelName == "5.PlateNumberRow")
+			{
+				XMLElement *LabelRectElement = LabelElement->FirstChildElement("bndbox");
+				
+				PlateRowRect.x = atoi(LabelRectElement->FirstChildElement("xmin")->GetText());
+				PlateRowRect.y = atoi(LabelRectElement->FirstChildElement("ymin")->GetText());
+				PlateRowRect.width = atoi(LabelRectElement->FirstChildElement("xmax")->GetText()) - PlateRowRect.x;
+				PlateRowRect.height = atoi(LabelRectElement->FirstChildElement("ymax")->GetText()) - PlateRowRect.y;
+				IsPlateRowRectFound = true;
+				break;
+			}
+			
+
+			LabelElement = LabelElement->NextSiblingElement("object");
+		}
+ 		if (IsPlateRowRectFound ==true)
+		{
+			rectangle(RawInput,//绘制矩形的对象
+				PlateRowRect, //要绘制的矩形
+				Scalar(0,0,255), //线条的颜色
+				3,//线条宽度
+				LINE_AA,//线型（抗混叠） 
+				0 //??坐标数值（二进制）的小数位数
+			);
+		}
 		//指定窗口名称
 		const char* MainWindowName = "get plate number from vehicle license";
 
@@ -140,13 +164,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 			MainWindowName,//窗口名称
 			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
 		);
-		//将图片窗口设置为固定高度500像素，且不改变图像的宽高比
+		//将图片窗口设置为固定高度700像素，且不改变图像的宽高比
 		double WindowHeight = 700.0;
 		resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
 		imshow(
 			MainWindowName,
-			Raw_GrayInput
+			RawInput
 		);
 
 		waitKey(0);
