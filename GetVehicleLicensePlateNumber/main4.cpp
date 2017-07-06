@@ -150,8 +150,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 	}
 
-	Mat GrayTemplate_BinaryGradY;/////////////////////////////////
-
+	Mat GrayTemplate_BinaryGradY;
 	threshold(
 		GrayTemplate_GradY, //输入矩阵
 		GrayTemplate_BinaryGradY, //输出矩阵
@@ -185,88 +184,103 @@ int main(int ArgumentCount, char** ArgumentVector)
 		Binary_ProjectYGradY.at<uchar>(iRow, 0) = unsigned char(SumTemp / TemplateWidth);
 	}
 
-	Mat ProjectY_DiffGradY(
-		int(TemplateHeight),//矩阵行数
-		1,//矩阵列数
-		CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-		Scalar(0)//矩阵填入的初始值
-	);
-
-
-	for (int iRow = 1; iRow < TemplateHeight - 1; iRow++)
-	{
-		ProjectY_DiffGradY.at<uchar>(iRow, 0) = 
-			abs(Binary_ProjectYGradY.at<uchar>(iRow, 0) - Binary_ProjectYGradY.at<uchar>(iRow - 1, 0));
-	}
-
-	Mat Diff_BinaryGradY;
+	Mat ProjectY_BinaryGradY;
 	threshold(
-		ProjectY_DiffGradY, //输入矩阵
-		Diff_BinaryGradY, //输出矩阵
+		Binary_ProjectYGradY, //输入矩阵
+		ProjectY_BinaryGradY, //输出矩阵
 		128, //迭代初始阈值
 		255, //最大值（超过阈值将设为此值）
 		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 	);
-	vector<size_t> DiffGradY_PeakRow;
-	vector<uchar> DiffGradY_PeakAmp;
-	for (size_t iRow = 0;
-		iRow < TemplateHeight;
-		iRow++)
-	{
-		if (Diff_BinaryGradY.at<uchar>(iRow, 0) == 255)
-		{
 
-			DiffGradY_PeakAmp.push_back(ProjectY_DiffGradY.at<uchar>(iRow, 0));
-			DiffGradY_PeakRow.push_back(iRow);
+	//uchar StemColor;
+	//for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
+	//{
+	//	if (Diff_BinaryGradY.at<uchar>(iRow,0) == 255)
+	//	{
+	//		StemColor = 255;
+	//	}
+	//	else
+	//	{
+	//		StemColor = 100;
+	//	}
+
+	//	//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
+	//	for (int iCol = 0; iCol < ProjectY_DiffGradY.at<uchar>(iRow, 0) / 255.0*InputImageWidth; iCol++)
+	//	{ 
+	//		DiffGradX_StemFigure.at<uchar>(iRow, iCol) = StemColor;
+	//	}
+	//}
+	vector<size_t> BinaryGradY_EdgeRow;
+	vector<uchar> BinaryGradY_EdgeAmp;
+
+	for (int iRow = 1; iRow < TemplateHeight - 1; iRow++)
+	{
+		if (abs(int(ProjectY_BinaryGradY.at<uchar>(iRow + 1, 0)) - int(ProjectY_BinaryGradY.at<uchar>(iRow, 0))) == 255)
+		{
+			BinaryGradY_EdgeRow.push_back(iRow);
+			BinaryGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGradY.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGradY.at<uchar>(iRow, 0))));
+
 		}
 	}
-	vector<size_t> SortedPeakIndex = SortIndex(DiffGradY_PeakAmp);
-	//vector <uchar>  BinaryGradY_SortPeakAmp;
-	vector <size_t> DiffGradY_SortPeakRow;
-	for (vector<size_t>::iterator itPeakIndex = SortedPeakIndex.begin();
-		itPeakIndex < SortedPeakIndex.end();
-		itPeakIndex++)
+
+	vector<size_t> SortedEdgeIndex = SortIndex(BinaryGradY_EdgeAmp);
+	//vector <uchar>  BinaryGradY_SortEdgeAmp;
+	vector <size_t> BinaryGradY_SortEdgeRow;
+	for (vector<size_t>::iterator itEdgeIndex = SortedEdgeIndex.begin();
+		itEdgeIndex < SortedEdgeIndex.end();
+		itEdgeIndex++)
 	{
-		//BinaryGradY_SortPeakAmp.push_back(BinaryGradY_PeakAmp[*itPeakIndex]);
-		DiffGradY_SortPeakRow.push_back(DiffGradY_PeakRow[*itPeakIndex]);
+		//BinaryGradY_SortEdgeAmp.push_back(BinaryGradY_EdgeAmp[*itEdgeIndex]);
+		BinaryGradY_SortEdgeRow.push_back(BinaryGradY_EdgeRow[*itEdgeIndex]);
 	}
 
-	bool FlagIgnorePeak = false;
+	bool FlagIgnoreEdge = false;
 
-	//vector <uchar>  Sort_FilterPeakAmp;
-	vector <size_t> SortPeakRow_LineRow;
+	//vector <uchar>  Sort_FilterEdgeAmp;
+	vector <size_t> SortEdgeRow_LineRow;
 
-	double MinPeakDistance = 80 * 0.6;
-	SortPeakRow_LineRow.push_back(DiffGradY_SortPeakRow[0]);
+	double MinEdgeDistance = TemplateHeight / TemplateHeight * 80 * 0.6;
+	SortEdgeRow_LineRow.push_back(BinaryGradY_SortEdgeRow[0]);
 
-	for (size_t iPeak = 1; iPeak < DiffGradY_SortPeakRow.size(); iPeak++)
+	for (size_t iEdge = 1; iEdge < BinaryGradY_SortEdgeRow.size(); iEdge++)
 	{
-		for (size_t jPeak = 0; jPeak < SortPeakRow_LineRow.size(); jPeak++)
+		for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
 		{
-			if (fabs(double(DiffGradY_SortPeakRow[iPeak]) - double(SortPeakRow_LineRow[jPeak])) < MinPeakDistance)
+			if (fabs(double(BinaryGradY_SortEdgeRow[iEdge]) - double(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
 			{
-				FlagIgnorePeak = true;
+				FlagIgnoreEdge = true;
 				break;
 			}
 		}
-		if (FlagIgnorePeak == true)
+		if (FlagIgnoreEdge == true)
 		{
-			FlagIgnorePeak = false;
+			FlagIgnoreEdge = false;
 		}
 		else
 		{
-			SortPeakRow_LineRow.push_back(DiffGradY_SortPeakRow[iPeak]);
-			//Sort_FilterPeakAmp.push_back(BinaryGradY_SortPeakAmp[iPeak]);
+			SortEdgeRow_LineRow.push_back(BinaryGradY_SortEdgeRow[iEdge]);
+			//Sort_FilterEdgeAmp.push_back(BinaryGradY_SortEdgeAmp[iEdge]);
 		}
 	}
 
-	SortPeakRow_LineRow.push_back(0);
-	SortPeakRow_LineRow.push_back(TemplateHeight-1);
+	SortEdgeRow_LineRow.push_back(0);
+	SortEdgeRow_LineRow.push_back(TemplateHeight - 1);
 
-	sort(SortPeakRow_LineRow.begin(), SortPeakRow_LineRow.end());
+	sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
 
-	vector <size_t>  TemplateLineRow = SortPeakRow_LineRow;
-	Mat TemplateDiffGradX = ProjectY_DiffGradY;
+	for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin();
+		itLine < SortEdgeRow_LineRow.end();
+		itLine++)
+	{
+		
+		RawTemplate.row(*itLine) = Scalar(0, 0, 255);
+
+	}
+
+
+	vector <size_t>  TemplateLineRow = SortEdgeRow_LineRow;
+
 	////////////////////////////////////////////////////////
 	//分别读取两个命令参数
 	String SearchGlobExpression = ArgumentVector[1];
@@ -482,20 +496,20 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//		DiffGradX_StemFigure.at<uchar>(iRow, iCol) = StemColor;
 		//	}
 		//}
-		vector<size_t> DiffGradY_EdgeRow;
-		vector<uchar> DiffGradY_EdgeAmp;
+		vector<size_t> BinaryGradY_EdgeRow;
+		vector<uchar> BinaryGradY_EdgeAmp;
 
-		for (int iRow = 0; iRow < InputImageHeight-1; iRow++)
+		for (int iRow = 1; iRow < InputImageHeight-1; iRow++)
 		{
 			if (abs(int(ProjectY_BinaryGradY.at<uchar>(iRow + 1, 0)) - int(ProjectY_BinaryGradY.at<uchar>(iRow, 0))) == 255)
 			{
-				DiffGradY_EdgeRow.push_back(iRow);
-				DiffGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGradY.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGradY.at<uchar>(iRow, 0))));
+				BinaryGradY_EdgeRow.push_back(iRow);
+				BinaryGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGradY.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGradY.at<uchar>(iRow, 0))));
 
 			}
 		}
 		 
-		vector<size_t> SortedEdgeIndex = SortIndex(DiffGradY_EdgeAmp);
+		vector<size_t> SortedEdgeIndex = SortIndex(BinaryGradY_EdgeAmp);
 		//vector <uchar>  BinaryGradY_SortEdgeAmp;
 		vector <size_t> DiffGradY_SortEdgeRow;
 		for (vector<size_t>::iterator itEdgeIndex = SortedEdgeIndex.begin();
@@ -503,7 +517,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			itEdgeIndex++)
 		{
 			//BinaryGradY_SortEdgeAmp.push_back(BinaryGradY_EdgeAmp[*itEdgeIndex]);
-			DiffGradY_SortEdgeRow.push_back(DiffGradY_EdgeRow[*itEdgeIndex]);
+			DiffGradY_SortEdgeRow.push_back(BinaryGradY_EdgeRow[*itEdgeIndex]);
 		}
 
 		bool FlagIgnoreEdge = false;
@@ -540,24 +554,16 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
 
-		for (vector<size_t>::iterator itLineY = SortEdgeRow_LineRow.begin();
-			itLineY < SortEdgeRow_LineRow.end();
-			itLineY++)
+		for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin();
+			itLine < SortEdgeRow_LineRow.end();
+			itLine++)
 		{
-			if (*itLineY == 0)
-			{
-				RawInput(Range(0, 1), Range::all()) = Scalar(0, 0, 255);
-			}
-			else if (*itLineY == InputImageHeight)
-			{
-				RawInput(Range(InputImageHeight-1, InputImageHeight), Range::all()) = Scalar(0, 0, 255);
-			}
-			else
-			{
-				RawInput(Range(*itLineY - 1, *itLineY + 1), Range::all()) = Scalar(0, 0, 255);
-			}
+			
+			RawInput.row(*itLine) = Scalar(0, 0, 255);
+
 		}
 
+		vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
 		//	Mat  FilterPeakIndex_StemFigure(
 			//	int(InputImageHeight),//矩阵行数
 			//	int(InputImageWidth),//矩阵列数
