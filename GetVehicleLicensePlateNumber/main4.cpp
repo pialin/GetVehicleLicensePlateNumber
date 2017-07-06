@@ -242,12 +242,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 	double MinEdgeDistance = TemplateHeight / TemplateHeight * 80 * 0.6;
 	SortEdgeRow_LineRow.push_back(BinaryGradY_SortEdgeRow[0]);
-
+	uchar TempLineGapWidth;
 	for (size_t iEdge = 1; iEdge < BinaryGradY_SortEdgeRow.size(); iEdge++)
 	{
 		for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
 		{
-			if (fabs(double(BinaryGradY_SortEdgeRow[iEdge]) - double(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
+			TempLineGapWidth = uchar(abs(int(BinaryGradY_SortEdgeRow[iEdge]) - int(SortEdgeRow_LineRow[jEdge])));
+			if (TempLineGapWidth < MinEdgeDistance)
 			{
 				FlagIgnoreEdge = true;
 				break;
@@ -268,19 +269,37 @@ int main(int ArgumentCount, char** ArgumentVector)
 	SortEdgeRow_LineRow.push_back(TemplateHeight - 1);
 
 	sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
-
-	for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin();
+	vector <int64> SortEdgeRow_LineGapWidth;
+	RawTemplate.row(SortEdgeRow_LineRow[0]) = Scalar(0, 0, 255);
+	for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin()+1;
 		itLine < SortEdgeRow_LineRow.end();
 		itLine++)
 	{
-		
+		SortEdgeRow_LineGapWidth.push_back(*itLine - *(itLine - 1));
 		RawTemplate.row(*itLine) = Scalar(0, 0, 255);
-
 	}
 
 
-	vector <size_t>  TemplateLineRow = SortEdgeRow_LineRow;
+	
+	int64 TemplateMedianLineGapWidth;
+	if (SortEdgeRow_LineGapWidth.size() % 2 == 1) 
+	{ 
+		partial_sort(SortEdgeRow_LineGapWidth.begin(),
+			SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
+			SortEdgeRow_LineGapWidth.end());
+		TemplateMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
+	}
+	else
+	{
+		partial_sort(SortEdgeRow_LineGapWidth.begin(),
+			SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
+			SortEdgeRow_LineGapWidth.end());
+		TemplateMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) + 
+			*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 +1 ))/2;
+	}
 
+	vector <size_t>  TemplateLineRow = SortEdgeRow_LineRow;
+	vector <uchar> ProjectYTemplateGradY = Binary_ProjectYGradY;
 	////////////////////////////////////////////////////////
 	//分别读取两个命令参数
 	String SearchGlobExpression = ArgumentVector[1];
@@ -532,7 +551,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		{
 			for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
 			{
-				if (fabs(double(DiffGradY_SortEdgeRow[iEdge]) - double(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
+				if (abs(int(DiffGradY_SortEdgeRow[iEdge]) - int(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
 				{
 					FlagIgnoreEdge = true;
 					break;
@@ -553,53 +572,106 @@ int main(int ArgumentCount, char** ArgumentVector)
 		SortEdgeRow_LineRow.push_back(InputImageHeight - 1);
 
 		sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
-
-		for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin();
+		vector <int64> SortEdgeRow_LineGapWidth;
+		RawInput.row(SortEdgeRow_LineRow[0]) = Scalar(0, 0, 255);
+		for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin() + 1;
 			itLine < SortEdgeRow_LineRow.end();
 			itLine++)
 		{
-			
+			SortEdgeRow_LineGapWidth.push_back(*itLine - *(itLine - 1));
 			RawInput.row(*itLine) = Scalar(0, 0, 255);
+		}
+
+
+
+		int64 InputMedianLineGapWidth;
+		if (SortEdgeRow_LineGapWidth.size() % 2 == 1)
+		{
+			partial_sort(SortEdgeRow_LineGapWidth.begin(),
+				SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
+				SortEdgeRow_LineGapWidth.end());
+			InputMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
+		}
+		else
+		{
+			partial_sort(SortEdgeRow_LineGapWidth.begin(),
+				SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
+				SortEdgeRow_LineGapWidth.end());
+			InputMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) +
+				*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1)) / 2;
+		}
+
+		sort(SortEdgeRow_LineGapWidth.begin(),
+			SortEdgeRow_LineGapWidth.end(),
+			[InputMedianLineGapWidth](int64 x, int64 y) {return abs(x- InputMedianLineGapWidth) < abs(y - InputMedianLineGapWidth); });
+
+		vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
+
+		vector <int64> InputLineGapWidth = SortEdgeRow_LineGapWidth;
+
+		Mat InputProjectYGradY = Binary_ProjectYGradY;
+
+		size_t TempInputLicenseHeight, TempInputMatchStartRow, TempInputMatchEndRow;
+		double TempInputHeightProportion;
+		vector <double> InputHeightProportion;
+		vector <size_t> InputLicenseHeight,InputMatchStartRow, InputMatchEndRow, TemplateMatchStartRow, TemplateMatchEndRow;
+		for (vector<int64>::iterator itInputGapWidth = InputLineGapWidth.begin();
+			itInputGapWidth != InputLineGapWidth.end();
+			itInputGapWidth++)
+		{
+
+				for (vector<size_t>::iterator itCrossLine = InputLineRow.begin()+1;
+					itCrossLine != TemplateLineRow.end();
+					itCrossLine++)
+				{
+				
+					TempInputLicenseHeight = size_t(double(*itInputGapWidth / TemplateMedianLineGapWidth) *TemplateHeight);
+
+					TempInputMatchEndRow = *itCrossLine;
+
+					TempInputMatchStartRow = (TempInputMatchEndRow - TempInputLicenseHeight) <0 ? 0:(TempInputMatchEndRow - TempInputLicenseHeight);
+					
+					TempInputHeightProportion = (TempInputMatchEndRow - TempInputMatchStartRow) / InputImageHeight;
+					if (TempInputHeightProportion > 0.6)
+					{
+						InputMatchStartRow.push_back(TempInputMatchStartRow);
+						InputMatchEndRow.push_back(TempInputMatchEndRow);
+						InputLicenseHeight.push_back(TempInputLicenseHeight);
+						TemplateMatchStartRow.push_back(*itTemplateLine);
+						TemplateMatchEndRow.push_back(TemplateMatchStartRow.back() +
+							double((TempInputMatchEndRow - TempInputMatchStartRow) / TempInputLicenseHeight)*TemplateHeight);
+
+						InputHeightProportion.push_back(TempInputHeightProportion);
+					}
+					
+				}
 
 		}
 
-		vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
-		//	Mat  FilterPeakIndex_StemFigure(
-			//	int(InputImageHeight),//矩阵行数
-			//	int(InputImageWidth),//矩阵列数
-			//	CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-			//	Scalar(0)//矩阵填入的初始值
-			//);
-			//
+		vector <size_t> SortedMatchIndex = SortIndex(InputHeightProportion);
 
-			//sort(PartialSort_FilterPeakIndex.begin(), PartialSort_FilterPeakIndex.end());
-			//
-			//vector<double> Filter_DiffPeakIndex(PartialSort_FilterPeakIndex.size()-1);
-			//for (size_t iPeak = 1;
-			//	iPeak < PartialSort_FilterPeakIndex.size();
-			//	iPeak++)
-			//{
-			//	Filter_DiffPeakIndex[iPeak - 1] = PartialSort_FilterPeakIndex[iPeak] - PartialSort_FilterPeakIndex[iPeak-1];
-			//}
-
-			//sort(Filter_DiffPeakIndex.begin(), Filter_DiffPeakIndex.end());
-
-			//double EstimatedLineGapWidth;
-			//if (Filter_DiffPeakIndex.size() % 2 == 1)
-			//{
-			//	EstimatedLineGapWidth = Filter_DiffPeakIndex[Filter_DiffPeakIndex.size() / 2];
-			//}
-			//else
-			//{
-			//	EstimatedLineGapWidth = (Filter_DiffPeakIndex[(Filter_DiffPeakIndex.size()) / 2-1] +
-			//		Filter_DiffPeakIndex[(Filter_DiffPeakIndex.size()) / 2 ])/2;
-			//}
-			//for (vector<size_t>::iterator itLine = PartialSort_FilterPeakIndex.begin();
-			//	itLine != PartialSort_FilterPeakIndex.end();
-			//	itLine++)
-			//{
-			//	RawImage(Range(*itLine-1,*itLine+1),Range::all()) = Scalar(0, 0, 255);
-			//}
+		for (vector <size_t>::iterator iMatch = SortedMatchIndex.begin();
+			iMatch < SortedMatchIndex.end;
+			iMatch++)
+		{
+			Mat ResizedTemplateGradY(
+				InputLicenseHeight[*iMatch],
+				1,
+				CV_8UC1,
+				0);
+			cv::resize(ProjectYTemplateGradY,
+				ResizedTemplateGradY,
+				ResizedTemplateGradY.size(),
+				0,
+				0,
+				INTER_LINEAR
+			);
+			Mat MatchTemplateGradY = ResizedTemplateGradY(Range(0, TemplateMatchEndRow[*iMatch]),Range::all());
+			Mat MatchInputGradY = ResizedTemplateGradY(Range(TemplateMatchStartRow[*iMatch], TemplateMatchEndRow[*iMatch]), Range::all());
+			cv::meanStdDev(MatchTemplateGradY)
+		}
+		
+		
  	//	imshow(MainWindowName, RawInput);
 		//waitKey(0);
   	}
