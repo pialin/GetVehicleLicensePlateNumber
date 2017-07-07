@@ -144,9 +144,12 @@ int main(int ArgumentCount, char** ArgumentVector)
 	{
 		for (int iCol = 1; iCol < (TemplateWidth - 1); iCol++)
 		{
-			GrayTemplate_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1))
-				+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol))
-				+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol + 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol + 1))) / 4;
+			//GrayTemplate_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1))
+			//	+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol))
+			//	+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol + 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol + 1))) / 4;
+			GrayTemplate_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayTemplate.at<uchar>(iRow, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow , iCol + 1))
+				+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol-1) - Raw_GrayTemplate.at<uchar>(iRow - 1, iCol+1))
+				+ abs(Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1))) / 4;
 		}
 	}
 
@@ -584,92 +587,92 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 
 
-		int64 InputMedianLineGapWidth;
-		if (SortEdgeRow_LineGapWidth.size() % 2 == 1)
-		{
-			partial_sort(SortEdgeRow_LineGapWidth.begin(),
-				SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
-				SortEdgeRow_LineGapWidth.end());
-			InputMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
-		}
-		else
-		{
-			partial_sort(SortEdgeRow_LineGapWidth.begin(),
-				SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
-				SortEdgeRow_LineGapWidth.end());
-			InputMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) +
-				*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1)) / 2;
-		}
+		//int64 InputMedianLineGapWidth;
+		//if (SortEdgeRow_LineGapWidth.size() % 2 == 1)
+		//{
+		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
+		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
+		//		SortEdgeRow_LineGapWidth.end());
+		//	InputMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
+		//}
+		//else
+		//{
+		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
+		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
+		//		SortEdgeRow_LineGapWidth.end());
+		//	InputMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) +
+		//		*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1)) / 2;
+		//}
 
-		sort(SortEdgeRow_LineGapWidth.begin(),
-			SortEdgeRow_LineGapWidth.end(),
-			[InputMedianLineGapWidth](int64 x, int64 y) {return abs(x- InputMedianLineGapWidth) < abs(y - InputMedianLineGapWidth); });
+		//sort(SortEdgeRow_LineGapWidth.begin(),
+		//	SortEdgeRow_LineGapWidth.end(),
+		//	[InputMedianLineGapWidth](int64 x, int64 y) {return abs(x- InputMedianLineGapWidth) < abs(y - InputMedianLineGapWidth); });
 
-		vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
+		//vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
 
-		vector <int64> InputLineGapWidth = SortEdgeRow_LineGapWidth;
+		//vector <int64> InputLineGapWidth = SortEdgeRow_LineGapWidth;
 
-		Mat InputProjectYGradY = Binary_ProjectYGradY;
+		//Mat InputProjectYGradY = Binary_ProjectYGradY;
 
-		size_t TempInputLicenseHeight, TempInputMatchStartRow, TempInputMatchEndRow;
-		double TempInputHeightProportion;
-		vector <double> InputHeightProportion;
-		vector <size_t> InputLicenseHeight,InputMatchStartRow, InputMatchEndRow, TemplateMatchStartRow, TemplateMatchEndRow;
-		for (vector<int64>::iterator itInputGapWidth = InputLineGapWidth.begin();
-			itInputGapWidth != InputLineGapWidth.end();
-			itInputGapWidth++)
-		{
+		//size_t TempInputLicenseHeight, TempInputMatchStartRow, TempInputMatchEndRow;
+		//double TempInputHeightProportion;
+		//vector <double> InputHeightProportion;
+		//vector <size_t> InputLicenseHeight,InputMatchStartRow, InputMatchEndRow, TemplateMatchStartRow, TemplateMatchEndRow;
+		//for (vector<int64>::iterator itInputGapWidth = InputLineGapWidth.begin();
+		//	itInputGapWidth != InputLineGapWidth.end();
+		//	itInputGapWidth++)
+		//{
 
-				for (vector<size_t>::iterator itCrossLine = InputLineRow.begin()+1;
-					itCrossLine != TemplateLineRow.end();
-					itCrossLine++)
-				{
-				
-					TempInputLicenseHeight = size_t(double(*itInputGapWidth / TemplateMedianLineGapWidth) *TemplateHeight);
+		//		for (vector<size_t>::iterator itCrossLine = InputLineRow.begin()+1;
+		//			itCrossLine != TemplateLineRow.end();
+		//			itCrossLine++)
+		//		{
+		//		
+		//			TempInputLicenseHeight = size_t(double(*itInputGapWidth / TemplateMedianLineGapWidth) *TemplateHeight);
 
-					TempInputMatchEndRow = *itCrossLine;
+		//			TempInputMatchEndRow = *itCrossLine;
 
-					TempInputMatchStartRow = (TempInputMatchEndRow - TempInputLicenseHeight) <0 ? 0:(TempInputMatchEndRow - TempInputLicenseHeight);
-					
-					TempInputHeightProportion = (TempInputMatchEndRow - TempInputMatchStartRow) / InputImageHeight;
-					if (TempInputHeightProportion > 0.6)
-					{
-						InputMatchStartRow.push_back(TempInputMatchStartRow);
-						InputMatchEndRow.push_back(TempInputMatchEndRow);
-						InputLicenseHeight.push_back(TempInputLicenseHeight);
-						TemplateMatchStartRow.push_back(*itTemplateLine);
-						TemplateMatchEndRow.push_back(TemplateMatchStartRow.back() +
-							double((TempInputMatchEndRow - TempInputMatchStartRow) / TempInputLicenseHeight)*TemplateHeight);
+		//			TempInputMatchStartRow = (TempInputMatchEndRow - TempInputLicenseHeight) <0 ? 0:(TempInputMatchEndRow - TempInputLicenseHeight);
+		//			
+		//			TempInputHeightProportion = (TempInputMatchEndRow - TempInputMatchStartRow) / InputImageHeight;
+		//			if (TempInputHeightProportion > 0.6)
+		//			{
+		//				InputMatchStartRow.push_back(TempInputMatchStartRow);
+		//				InputMatchEndRow.push_back(TempInputMatchEndRow);
+		//				InputLicenseHeight.push_back(TempInputLicenseHeight);
+		//				TemplateMatchStartRow.push_back(*itTemplateLine);
+		//				TemplateMatchEndRow.push_back(TemplateMatchStartRow.back() +
+		//					double((TempInputMatchEndRow - TempInputMatchStartRow) / TempInputLicenseHeight)*TemplateHeight);
 
-						InputHeightProportion.push_back(TempInputHeightProportion);
-					}
-					
-				}
+		//				InputHeightProportion.push_back(TempInputHeightProportion);
+		//			}
+		//			
+		//		}
 
-		}
+		//}
 
-		vector <size_t> SortedMatchIndex = SortIndex(InputHeightProportion);
+		//vector <size_t> SortedMatchIndex = SortIndex(InputHeightProportion);
 
-		for (vector <size_t>::iterator iMatch = SortedMatchIndex.begin();
-			iMatch < SortedMatchIndex.end;
-			iMatch++)
-		{
-			Mat ResizedTemplateGradY(
-				InputLicenseHeight[*iMatch],
-				1,
-				CV_8UC1,
-				0);
-			cv::resize(ProjectYTemplateGradY,
-				ResizedTemplateGradY,
-				ResizedTemplateGradY.size(),
-				0,
-				0,
-				INTER_LINEAR
-			);
-			Mat MatchTemplateGradY = ResizedTemplateGradY(Range(0, TemplateMatchEndRow[*iMatch]),Range::all());
-			Mat MatchInputGradY = ResizedTemplateGradY(Range(TemplateMatchStartRow[*iMatch], TemplateMatchEndRow[*iMatch]), Range::all());
-			cv::meanStdDev(MatchTemplateGradY)
-		}
+		//for (vector <size_t>::iterator iMatch = SortedMatchIndex.begin();
+		//	iMatch < SortedMatchIndex.end;
+		//	iMatch++)
+		//{
+		//	Mat ResizedTemplateGradY(
+		//		InputLicenseHeight[*iMatch],
+		//		1,
+		//		CV_8UC1,
+		//		0);
+		//	cv::resize(ProjectYTemplateGradY,
+		//		ResizedTemplateGradY,
+		//		ResizedTemplateGradY.size(),
+		//		0,
+		//		0,
+		//		INTER_LINEAR
+		//	);
+		//	Mat MatchTemplateGradY = ResizedTemplateGradY(Range(0, TemplateMatchEndRow[*iMatch]),Range::all());
+		//	Mat MatchInputGradY = ResizedTemplateGradY(Range(TemplateMatchStartRow[*iMatch], TemplateMatchEndRow[*iMatch]), Range::all());
+		//	cv::meanStdDev(MatchTemplateGradY)
+		//}
 		
 		
  	//	imshow(MainWindowName, RawInput);
