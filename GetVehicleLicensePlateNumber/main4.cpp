@@ -17,38 +17,40 @@ using namespace cv;
 
 //从模板图片中获得的位置信息
 //模板图片的宽、高
-const double TemplateWidth = 1044;
-const double TemplateHeight = 716;
+const int TemplateImageWidth = 1044;
+const int TemplateImageHeight = 716;
 //模板图片标题所在区域的宽、高及区域中心的XY坐标
-const double TemplateTitleWidth = 684;
-const double TemplateTitleHeight = 68;
-const double TemplateTitleCenterX = 512;
-const double TemplateTitleCenterY = 72;
+const double TemplateImageTitleWidth = 684;
+const double TemplateImageTitleHeight = 68;
+const double TemplateImageTitleCenterX = 512;
+const double TemplateImageTitleCenterY = 72;
 //模板图片标题部分的水平间隙高度（水平投影时中文和英文之间出现的空隙宽度）
-const double TemplateTitleGapHeight = 5;
+const double TemplateImageTitleGapHeight = 5;
 //模板图片标题部分的垂直间隙宽度（垂直投影时文字之间出现的空隙宽度）
-const double TemplateTitleGapWidth = 40;
+const double TemplateImageTitleGapWidth = 40;
 //模板图片标题部分英文的高度
-const double TemplateTitleEnglishHeight = 14;
+const double TemplateImageTitleEnglishHeight = 14;
 //模板图片车牌区域的宽、高及区域中心的XY坐标
-const double TemplatePlateWidth = 174;
-const double TemplatePlateHeight = 41;
-const double TemplatePlateCenterX = 271;
-const double TemplatePlateCenterY = 166;
+const double TemplateImagePlateWidth = 174;
+const double TemplateImagePlateHeight = 41;
+const double TemplateImagePlateCenterX = 271;
+const double TemplateImagePlateCenterY = 166;
+
+const double TemplateImageLineGapHeight = 83;
 
 double WindowHeight = 700.0;
 
 template <typename SortValueType>
-vector<size_t>  SortIndex(vector<SortValueType> &InputValueVector) {
+vector<int>  SortIndex(vector<SortValueType> &InputValueVector) {
 
 	// initialize original index locations
-	vector<size_t> IndexVector(InputValueVector.size());
+	vector<int> IndexVector(InputValueVector.size());
 	iota(IndexVector.begin(), IndexVector.end(), 0);
 
 	// sort indexes based on comparing values in v
 	sort(IndexVector.begin(),
 		IndexVector.end(),
-		[&InputValueVector](size_t x, size_t y) {return InputValueVector[x] > InputValueVector[y]; });
+		[&InputValueVector](int x, int y) {return InputValueVector[x] > InputValueVector[y]; });
 	return IndexVector;
 }
 
@@ -67,243 +69,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//返回错误码并退出程序
 		return -1;
 	}
-	///////////////////////////////////////////////////
-	//对符合的图片进行遍历
-
-		//新建矩阵RawImageMat用于存储原始图片数据
-	Mat RawTemplate;
-
-	//根据第一个参数的文件路径进行图片读取
-	RawTemplate = imread(
-		"E:\\Desktop\\TestImage\\Template2.jpg",//输入图片路径
-		CV_LOAD_IMAGE_UNCHANGED//以不修改通道类型的方式读取图片
-	);
-
-	//检查读入的Mat是否包含图像数据
-	if (!RawTemplate.data)
-	{
-		//显示图片读取失败提示信息
-		cout << " Error:  Can't read image data from E:\\Desktop\\TestImage\\Template2.jpg"<< endl;
-		//返回错误码并退出程序
-		return -1;
-	}
-	//计算输入图像的宽、高、面积和宽高比
-	const double TemplateWidth = RawTemplate.cols;
-	const double TemplateHeight = RawTemplate.rows;
-	const double TemplateRatio = TemplateWidth / TemplateHeight;
-
-	//将图片转换成灰阶图像
-	Mat Raw_GrayTemplate;
-
-	//获取图片的通道数
-	int NumTemplateChannel = RawTemplate.channels();
-
-	//如果图像为3通道彩色图像
-	if (NumTemplateChannel == 3)
-	{
-		//将图片由BGR转换成灰阶图像
-		cvtColor(
-			RawTemplate,//输入图片矩阵
-			Raw_GrayTemplate,//输出图片矩阵 
-			COLOR_BGR2GRAY//将图片由BGR（OpenCV默认通道格式）转换成灰阶图像
-		);
-	}
-
-	//如果图像为4通道（包含alpha通道）图像，则将其转换成灰阶图像
-	else if (NumTemplateChannel == 4)
-	{
-		//将图片由BGRA转换成灰阶图像
-		cvtColor(
-			RawTemplate,
-			Raw_GrayTemplate,
-			COLOR_BGRA2GRAY//将图片由BGRA转换成灰阶图像
-		);
-	}
-	//如果图像已经为单通道灰阶图像，直接将ResizedImageMat赋给GrayImageMat
-	else if (NumTemplateChannel == 1)
-	{
-		Raw_GrayTemplate = RawTemplate;
-	}
-
-	//如果通道数不为1,3或4，输出错误码并退出程序
-	else
-	{
-		cout << "Unkown image channel type: " << RawTemplate.channels();
-	}
-
-
-	//创建矩阵用于存放图像X方向的梯度值
-	Mat GrayTemplate_GradY(
-		int(TemplateHeight),//矩阵的第一维（高度）尺寸
-		int(TemplateWidth), //矩阵的第二维（宽度）尺寸
-		CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
-		Scalar(0)//矩阵填充的初始值
-	);
-	//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
-	for (int iRow = 1; iRow < TemplateHeight - 1; iRow++)
-	{
-		for (int iCol = 1; iCol < (TemplateWidth - 1); iCol++)
-		{
-			//GrayTemplate_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1))
-			//	+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol))
-			//	+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol + 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol + 1))) / 4;
-			GrayTemplate_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayTemplate.at<uchar>(iRow, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow , iCol + 1))
-				+ abs(Raw_GrayTemplate.at<uchar>(iRow - 1, iCol-1) - Raw_GrayTemplate.at<uchar>(iRow - 1, iCol+1))
-				+ abs(Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1) - Raw_GrayTemplate.at<uchar>(iRow + 1, iCol - 1))) / 4;
-		}
-	}
-
-	Mat GrayTemplate_BinaryGradY;
-	threshold(
-		GrayTemplate_GradY, //输入矩阵
-		GrayTemplate_BinaryGradY, //输出矩阵
-		128, //迭代初始阈值
-		255, //最大值（超过阈值将设为此值）
-		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-	);
-
-
-	//创建Y梯度投影向量
-	Mat  Binary_ProjectYGradY(
-		int(TemplateHeight),//矩阵行数
-		1,//矩阵列数
-		CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-		Scalar(0)//矩阵填入的初始值
-	);
-
-	//临时加和变量
-	double SumTemp;
-	for (int iRow = 0; iRow < TemplateHeight; iRow++)
-	{
-		//每次叠加前将加和变量清零
-		SumTemp = 0;
-
-		//叠加同一行每一列的梯度值
-		for (int iCol = 0; iCol < TemplateWidth; iCol++)
-		{
-			SumTemp += double(GrayTemplate_BinaryGradY.at<uchar>(iRow, iCol));
-		}
-		//求叠加值的均值作为水平投影后的梯度值
-		Binary_ProjectYGradY.at<uchar>(iRow, 0) = unsigned char(SumTemp / TemplateWidth);
-	}
-
-	Mat ProjectY_BinaryGradY;
-	threshold(
-		Binary_ProjectYGradY, //输入矩阵
-		ProjectY_BinaryGradY, //输出矩阵
-		128, //迭代初始阈值
-		255, //最大值（超过阈值将设为此值）
-		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-	);
-
-	//uchar StemColor;
-	//for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-	//{
-	//	if (Diff_BinaryGradY.at<uchar>(iRow,0) == 255)
-	//	{
-	//		StemColor = 255;
-	//	}
-	//	else
-	//	{
-	//		StemColor = 100;
-	//	}
-
-	//	//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
-	//	for (int iCol = 0; iCol < ProjectY_DiffGradY.at<uchar>(iRow, 0) / 255.0*InputImageWidth; iCol++)
-	//	{ 
-	//		DiffGradX_StemFigure.at<uchar>(iRow, iCol) = StemColor;
-	//	}
-	//}
-	vector<size_t> BinaryGradY_EdgeRow;
-	vector<uchar> BinaryGradY_EdgeAmp;
-
-	for (int iRow = 1; iRow < TemplateHeight - 1; iRow++)
-	{
-		if (abs(int(ProjectY_BinaryGradY.at<uchar>(iRow + 1, 0)) - int(ProjectY_BinaryGradY.at<uchar>(iRow, 0))) == 255)
-		{
-			BinaryGradY_EdgeRow.push_back(iRow);
-			BinaryGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGradY.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGradY.at<uchar>(iRow, 0))));
-
-		}
-	}
-
-	vector<size_t> SortedEdgeIndex = SortIndex(BinaryGradY_EdgeAmp);
-	//vector <uchar>  BinaryGradY_SortEdgeAmp;
-	vector <size_t> BinaryGradY_SortEdgeRow;
-	for (vector<size_t>::iterator itEdgeIndex = SortedEdgeIndex.begin();
-		itEdgeIndex < SortedEdgeIndex.end();
-		itEdgeIndex++)
-	{
-		//BinaryGradY_SortEdgeAmp.push_back(BinaryGradY_EdgeAmp[*itEdgeIndex]);
-		BinaryGradY_SortEdgeRow.push_back(BinaryGradY_EdgeRow[*itEdgeIndex]);
-	}
-
-	bool FlagIgnoreEdge = false;
-
-	//vector <uchar>  Sort_FilterEdgeAmp;
-	vector <size_t> SortEdgeRow_LineRow;
-
-	double MinEdgeDistance = TemplateHeight / TemplateHeight * 80 * 0.6;
-	SortEdgeRow_LineRow.push_back(BinaryGradY_SortEdgeRow[0]);
-	uchar TempLineGapWidth;
-	for (size_t iEdge = 1; iEdge < BinaryGradY_SortEdgeRow.size(); iEdge++)
-	{
-		for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
-		{
-			TempLineGapWidth = uchar(abs(int(BinaryGradY_SortEdgeRow[iEdge]) - int(SortEdgeRow_LineRow[jEdge])));
-			if (TempLineGapWidth < MinEdgeDistance)
-			{
-				FlagIgnoreEdge = true;
-				break;
-			}
-		}
-		if (FlagIgnoreEdge == true)
-		{
-			FlagIgnoreEdge = false;
-		}
-		else
-		{
-			SortEdgeRow_LineRow.push_back(BinaryGradY_SortEdgeRow[iEdge]);
-			//Sort_FilterEdgeAmp.push_back(BinaryGradY_SortEdgeAmp[iEdge]);
-		}
-	}
-
-	SortEdgeRow_LineRow.push_back(0);
-	SortEdgeRow_LineRow.push_back(TemplateHeight - 1);
-
-	sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
-	vector <int64> SortEdgeRow_LineGapWidth;
-	RawTemplate.row(SortEdgeRow_LineRow[0]) = Scalar(0, 0, 255);
-	for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin()+1;
-		itLine < SortEdgeRow_LineRow.end();
-		itLine++)
-	{
-		SortEdgeRow_LineGapWidth.push_back(*itLine - *(itLine - 1));
-		RawTemplate.row(*itLine) = Scalar(0, 0, 255);
-	}
-
-
-	
-	int64 TemplateMedianLineGapWidth;
-	if (SortEdgeRow_LineGapWidth.size() % 2 == 1) 
-	{ 
-		partial_sort(SortEdgeRow_LineGapWidth.begin(),
-			SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
-			SortEdgeRow_LineGapWidth.end());
-		TemplateMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
-	}
-	else
-	{
-		partial_sort(SortEdgeRow_LineGapWidth.begin(),
-			SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
-			SortEdgeRow_LineGapWidth.end());
-		TemplateMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) + 
-			*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 +1 ))/2;
-	}
-
-	vector <size_t>  TemplateLineRow = SortEdgeRow_LineRow;
-	vector <uchar> ProjectYTemplateGradY = Binary_ProjectYGradY;
-	////////////////////////////////////////////////////////
 	//分别读取两个命令参数
 	String SearchGlobExpression = ArgumentVector[1];
 	String OutputPath = ArgumentVector[2];
@@ -318,105 +83,75 @@ int main(int ArgumentCount, char** ArgumentVector)
 		false//不进行递归，即不对子文件夹进行搜索
 	);
 
+	int InputImageHeight;
+	int InputImageWidth;
+
 	//对符合的图片进行遍历
-	for (size_t iInput = 0; iInput < ImagePathList.size(); iInput++)
+	for (size_t iInputImage = 0; iInputImage < ImagePathList.size(); iInputImage++)
 	{
 		//新建矩阵RawImageMat用于存储原始图片数据
-		Mat RawInput;
+		Mat InputImage;
 
 		//根据第一个参数的文件路径进行图片读取
-		RawInput = imread(
-			ImagePathList[iInput],//输入图片路径
+		InputImage = imread(
+			ImagePathList[iInputImage],//输入图片路径
 			CV_LOAD_IMAGE_UNCHANGED//以不修改通道类型的方式读取图片
 		);
 
 		//检查读入的Mat是否包含图像数据
-		if (!RawInput.data)
+		if (!InputImage.data)
 		{
 			//显示图片读取失败提示信息
-			cout << " Error:  Can't read image data from" << ArgumentVector[1] << endl;
+			cout << " Error:  Can't read image data from" << ImagePathList[iInputImage]  << endl;
 			//返回错误码并退出程序
 			return -1;
 		}
-		//计算输入图像的宽、高、面积和宽高比
-		const double InputImageWidth = RawInput.cols;
-		const double InputImageHeight = RawInput.rows;
 
-	
+		InputImageHeight = InputImage.rows;
+		InputImageWidth = InputImage.cols;
+
 		//将图片转换成灰阶图像
-		Mat Raw_GrayInput;
+		Mat Gray_InputImage;
 
 		//获取图片的通道数
-		int NumRawInputChannel = RawInput.channels();
+		int NumInputImageChannel = InputImage.channels();
 
 		//如果图像为3通道彩色图像
-		if (NumRawInputChannel == 3)
+		if (NumInputImageChannel == 3)
 		{
 			//将图片由BGR转换成灰阶图像
 			cvtColor(
-				RawInput,//输入图片矩阵
-				Raw_GrayInput,//输出图片矩阵 
+				InputImage,//输入图片矩阵
+				Gray_InputImage,//输出图片矩阵 
 				COLOR_BGR2GRAY//将图片由BGR（OpenCV默认通道格式）转换成灰阶图像
 			);
 		}
 
 		//如果图像为4通道（包含alpha通道）图像，则将其转换成灰阶图像
-		else if (NumRawInputChannel == 4)
+		else if (NumInputImageChannel == 4)
 		{
 			//将图片由BGRA转换成灰阶图像
 			cvtColor(
-				RawInput,
-				Raw_GrayInput,
+				InputImage,//输入图片矩阵
+				Gray_InputImage,//输出图片矩阵 
 				COLOR_BGRA2GRAY//将图片由BGRA转换成灰阶图像
 			);
 		}
 		//如果图像已经为单通道灰阶图像，直接将ResizedImageMat赋给GrayImageMat
-		else if (NumRawInputChannel == 1)
+		else if (NumInputImageChannel == 1)
 		{
-			Raw_GrayInput = RawInput;
+			Gray_InputImage = InputImage;
 		}
 
 		//如果通道数不为1,3或4，输出错误码并退出程序
 		else
 		{
-			cout << "Unkown image channel type: " << RawInput.channels();
+			cout << "Unkown image channel type: " << NumInputImageChannel;
 		}
 
 
-		//指定窗口名称
-		const char* MainWindowName = "get plate number from vehicle license";
-
-
-		////创建相应的窗口
-		//namedWindow(
-		//	MainWindowName,//窗口名称
-		//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		//);
-		////将图片窗口设置为固定高度500像素，且不改变图像的宽高比
-		//double WindowHeight = 700.0;
-		//resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
-
-		//imshow(
-		//	MainWindowName,
-		//	Raw_GrayInput
-		//);
-
-		//waitKey(0);
-
-
-		//设置行驶证的比例限制范围
-		//水平方向至少占据宽度的60%
-		double LicenseProportionXMin = 0.6;
-		//水平方向至多达到宽度的110%
-		double LicenseProportionXMax = 1.2;
-		//垂直方向至少占据高度的60%
-		double LicenseProportionYMin = 0.6;
-		//垂直方向至多达到宽度的110%
-		double LicenseProportionYMax = 1.2;
-
-
 		//创建矩阵用于存放图像X方向的梯度值
-		Mat GrayInput_GradY(
+		Mat InputImage_GradY(
 			int(InputImageHeight),//矩阵的第一维（高度）尺寸
 			int(InputImageWidth), //矩阵的第二维（宽度）尺寸
 			CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
@@ -427,33 +162,32 @@ int main(int ArgumentCount, char** ArgumentVector)
 		{
 			for (int iCol = 1; iCol < (InputImageWidth - 1); iCol++)
 			{
-				GrayInput_GradY.at<uchar>(iRow, iCol) = (2 * abs(Raw_GrayInput.at<uchar>(iRow - 1, iCol - 1) - Raw_GrayInput.at<uchar>(iRow + 1, iCol - 1))
-					+ abs(Raw_GrayInput.at<uchar>(iRow - 1, iCol) - Raw_GrayInput.at<uchar>(iRow + 1, iCol))
-					+ abs(Raw_GrayInput.at<uchar>(iRow - 1, iCol + 1) - Raw_GrayInput.at<uchar>(iRow + 1, iCol + 1))) / 4;
+				InputImage_GradY.at<uchar>(iRow, iCol) = uchar (abs(10.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol) - Gray_InputImage.at<uchar>(iRow - 1, iCol)) +
+					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol - 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol - 1)) +
+					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol + 1))) / 16);
 			}
 		}
 
-		Mat GrayInput_BinaryGradY;
-
+		Mat Binary_GradY;
 		threshold(
-			GrayInput_GradY, //输入矩阵
-			GrayInput_BinaryGradY, //输出矩阵
+			InputImage_GradY, //输入矩阵
+			Binary_GradY, //输出矩阵
 			128, //迭代初始阈值
 			255, //最大值（超过阈值将设为此值）
 			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 		);
 
 
-		//创建Y梯度投影向量
-		Mat  Binary_ProjectYGradY(
+		//创建X方向梯度投影向量
+		Mat  Binary_ProjectX_GradY(
 			int(InputImageHeight),//矩阵行数
 			1,//矩阵列数
-			CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
+			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
 			Scalar(0)//矩阵填入的初始值
 		);
 
 		//临时加和变量
-		double SumTemp;
+		float SumTemp;
 		for (int iRow = 0; iRow < InputImageHeight; iRow++)
 		{
 			//每次叠加前将加和变量清零
@@ -462,222 +196,126 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//叠加同一行每一列的梯度值
 			for (int iCol = 0; iCol < InputImageWidth; iCol++)
 			{
-				SumTemp += double(GrayInput_BinaryGradY.at<uchar>(iRow, iCol));
+				SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
 			}
 			//求叠加值的均值作为水平投影后的梯度值
-			Binary_ProjectYGradY.at<uchar>(iRow, 0) = unsigned char(SumTemp / InputImageWidth);
+			Binary_ProjectX_GradY.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
 		}
 
-		//Mat ProjectY_DiffGradY(
-		//	int(InputImageHeight),//矩阵行数
-		//	1,//矩阵列数
-		//	CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-		//	Scalar(0)//矩阵填入的初始值
-		//);
-
-
-		//Mat DiffGradX_StemFigure(
-		//	int(InputImageHeight),//矩阵行数
-		//	int(InputImageWidth),//矩阵列数
-		//	CV_8UC1,//矩阵值的类型（8位无符号整数单通道）
-		//	Scalar(0)//矩阵填入的初始值
-		//);
-		//for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		//{
-		//	ProjectY_DiffGradY.at<uchar>(iRow, 0) =
-		//		abs(Binary_ProjectYGradY.at<uchar>(iRow, 0) - Binary_ProjectYGradY.at<uchar>(iRow - 1, 0));
-		//	
-		//}
-
-		
-
-		Mat ProjectY_BinaryGradY;
-		threshold(
-			Binary_ProjectYGradY, //输入矩阵
-			ProjectY_BinaryGradY, //输出矩阵
-			128, //迭代初始阈值
-			255, //最大值（超过阈值将设为此值）
-			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+		//创建X方向梯度投影差分向量
+		Mat  GradY_DiffGradY(
+			int(InputImageHeight),//矩阵行数
+			1,//矩阵列数
+			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
+			Scalar(0)//矩阵填入的初始值
 		);
 
-		//uchar StemColor;
-		//for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		//{
-		//	if (Diff_BinaryGradY.at<uchar>(iRow,0) == 255)
-		//	{
-		//		StemColor = 255;
-		//	}
-		//	else
-		//	{
-		//		StemColor = 100;
-		//	}
-
-		//	//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
-		//	for (int iCol = 0; iCol < ProjectY_DiffGradY.at<uchar>(iRow, 0) / 255.0*InputImageWidth; iCol++)
-		//	{ 
-		//		DiffGradX_StemFigure.at<uchar>(iRow, iCol) = StemColor;
-		//	}
-		//}
-		vector<size_t> BinaryGradY_EdgeRow;
-		vector<uchar> BinaryGradY_EdgeAmp;
-
-		for (int iRow = 1; iRow < InputImageHeight-1; iRow++)
+		for (int iRow = 1; iRow < InputImageHeight; iRow++)
 		{
-			if (abs(int(ProjectY_BinaryGradY.at<uchar>(iRow + 1, 0)) - int(ProjectY_BinaryGradY.at<uchar>(iRow, 0))) == 255)
+			GradY_DiffGradY.at<float>(iRow, 0) = fabsf(Binary_ProjectX_GradY.at<float>(iRow, 0) -
+				Binary_ProjectX_GradY.at<float>(iRow - 1, 0));
+		}
+
+		Mat Histogram_DiffGradY(
+			InputImageHeight,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
+		{
+			//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
+			Histogram_DiffGradY(Range(iRow, iRow+1), Range(0, int(GradY_DiffGradY.at<float>(iRow, 0) / 255.0*InputImageWidth))) = 100;
+
+		}
+
+		vector<int> DiffGradY_PeakRow;
+		vector<float> DiffGradY_PeakAmp;
+
+		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
+		{
+			if (GradY_DiffGradY.at<float>(iRow, 0) >= GradY_DiffGradY.at<float>(iRow - 1, 0) &&
+				GradY_DiffGradY.at<float>(iRow, 0) >= GradY_DiffGradY.at<float>(iRow + 1, 0))
 			{
-				BinaryGradY_EdgeRow.push_back(iRow);
-				BinaryGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGradY.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGradY.at<uchar>(iRow, 0))));
+
+				DiffGradY_PeakRow.push_back(iRow);
+				DiffGradY_PeakAmp.push_back(GradY_DiffGradY.at<float>(iRow, 0));
 
 			}
 		}
-		 
-		vector<size_t> SortedEdgeIndex = SortIndex(BinaryGradY_EdgeAmp);
-		//vector <uchar>  BinaryGradY_SortEdgeAmp;
-		vector <size_t> DiffGradY_SortEdgeRow;
-		for (vector<size_t>::iterator itEdgeIndex = SortedEdgeIndex.begin();
-			itEdgeIndex < SortedEdgeIndex.end();
-			itEdgeIndex++)
+
+
+		vector<int> SortPeakIndex = SortIndex(DiffGradY_PeakAmp);
+		vector <int> Sort_PeakRow;
+		for (vector<int>::iterator itPeakIndex = SortPeakIndex.begin();
+			itPeakIndex < SortPeakIndex.end();
+			itPeakIndex++)
 		{
-			//BinaryGradY_SortEdgeAmp.push_back(BinaryGradY_EdgeAmp[*itEdgeIndex]);
-			DiffGradY_SortEdgeRow.push_back(BinaryGradY_EdgeRow[*itEdgeIndex]);
+			Sort_PeakRow.push_back(DiffGradY_PeakRow[*itPeakIndex]);
 		}
 
-		bool FlagIgnoreEdge = false;
+		bool FlagIgnorePeak = false;
+		vector <int>  PeakRow_LineRow, PeakRow_LineRowTemp;
 
-		//vector <uchar>  Sort_FilterEdgeAmp;
-		vector <size_t> SortEdgeRow_LineRow;
+		double MinPeakDistance;
 
-		double MinEdgeDistance = InputImageHeight/TemplateHeight *80 * 0.6;
-		SortEdgeRow_LineRow.push_back(DiffGradY_SortEdgeRow[0]);
+		Mat InputImageTemp;
 
-		for (size_t iEdge = 1; iEdge < DiffGradY_SortEdgeRow.size(); iEdge++)
+		double ScaleStep = 0.01;
+		int NumScale = int((1.2 - 0.6) / ScaleStep);
+		double CurrentScale;
+
+		bool IsLineRowChanged = true;
+
+		for (double iScale = 0; iScale < NumScale; iScale++)
 		{
-			for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
+			CurrentScale = 0.6 + iScale*ScaleStep;
+			InputImageTemp = InputImage;
+			MinPeakDistance = InputImageHeight * CurrentScale * (TemplateImageLineGapHeight / TemplateImageHeight)*0.8;
+
+			vector<int>().swap(PeakRow_LineRow);
+
+			for (size_t iPeak = 0; iPeak < Sort_PeakRow.size(); iPeak++)
 			{
-				if (abs(int(DiffGradY_SortEdgeRow[iEdge]) - int(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
+				for (size_t iLine = 0; iLine < PeakRow_LineRow.size(); iLine++)
 				{
-					FlagIgnoreEdge = true;
-					break;
+					if (abs(int(Sort_PeakRow[iPeak]) - int(PeakRow_LineRow[iLine])) < MinPeakDistance)
+					{
+						FlagIgnorePeak = true;
+						break;
+					}
+				}
+				if (FlagIgnorePeak == true)
+				{
+					FlagIgnorePeak = false;
+				}
+				else
+				{
+					PeakRow_LineRow.push_back(Sort_PeakRow[iPeak]);
+					InputImageTemp.row(Sort_PeakRow[iPeak]) = Scalar(0, 0, 255);
+
+					//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
+					Histogram_DiffGradY(Range(Sort_PeakRow[iPeak], Sort_PeakRow[iPeak] + 1), 
+						Range(0, int(GradY_DiffGradY.at<float>(Sort_PeakRow[iPeak], 0) / 255.0*InputImageWidth))) = 255;
 				}
 			}
-			if (FlagIgnoreEdge == true)
+			if (PeakRow_LineRowTemp.empty() || PeakRow_LineRow != PeakRow_LineRowTemp)
 			{
-				FlagIgnoreEdge = false;
+				IsLineRowChanged = true;
+				PeakRow_LineRowTemp = PeakRow_LineRow;
 			}
 			else
 			{
-				SortEdgeRow_LineRow.push_back(DiffGradY_SortEdgeRow[iEdge]);
-				//Sort_FilterEdgeAmp.push_back(BinaryGradY_SortEdgeAmp[iEdge]);
+				IsLineRowChanged = false;
 			}
+
+			if (IsLineRowChanged)
+			{
+
+			}
+			
 		}
-
-		SortEdgeRow_LineRow.push_back(0);
-		SortEdgeRow_LineRow.push_back(InputImageHeight - 1);
-
-		sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
-		vector <int64> SortEdgeRow_LineGapWidth;
-		RawInput.row(SortEdgeRow_LineRow[0]) = Scalar(0, 0, 255);
-		for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin() + 1;
-			itLine < SortEdgeRow_LineRow.end();
-			itLine++)
-		{
-			SortEdgeRow_LineGapWidth.push_back(*itLine - *(itLine - 1));
-			RawInput.row(*itLine) = Scalar(0, 0, 255);
-		}
-
-
-
-		//int64 InputMedianLineGapWidth;
-		//if (SortEdgeRow_LineGapWidth.size() % 2 == 1)
-		//{
-		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
-		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
-		//		SortEdgeRow_LineGapWidth.end());
-		//	InputMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
-		//}
-		//else
-		//{
-		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
-		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
-		//		SortEdgeRow_LineGapWidth.end());
-		//	InputMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) +
-		//		*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1)) / 2;
-		//}
-
-		//sort(SortEdgeRow_LineGapWidth.begin(),
-		//	SortEdgeRow_LineGapWidth.end(),
-		//	[InputMedianLineGapWidth](int64 x, int64 y) {return abs(x- InputMedianLineGapWidth) < abs(y - InputMedianLineGapWidth); });
-
-		//vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
-
-		//vector <int64> InputLineGapWidth = SortEdgeRow_LineGapWidth;
-
-		//Mat InputProjectYGradY = Binary_ProjectYGradY;
-
-		//size_t TempInputLicenseHeight, TempInputMatchStartRow, TempInputMatchEndRow;
-		//double TempInputHeightProportion;
-		//vector <double> InputHeightProportion;
-		//vector <size_t> InputLicenseHeight,InputMatchStartRow, InputMatchEndRow, TemplateMatchStartRow, TemplateMatchEndRow;
-		//for (vector<int64>::iterator itInputGapWidth = InputLineGapWidth.begin();
-		//	itInputGapWidth != InputLineGapWidth.end();
-		//	itInputGapWidth++)
-		//{
-
-		//		for (vector<size_t>::iterator itCrossLine = InputLineRow.begin()+1;
-		//			itCrossLine != TemplateLineRow.end();
-		//			itCrossLine++)
-		//		{
-		//		
-		//			TempInputLicenseHeight = size_t(double(*itInputGapWidth / TemplateMedianLineGapWidth) *TemplateHeight);
-
-		//			TempInputMatchEndRow = *itCrossLine;
-
-		//			TempInputMatchStartRow = (TempInputMatchEndRow - TempInputLicenseHeight) <0 ? 0:(TempInputMatchEndRow - TempInputLicenseHeight);
-		//			
-		//			TempInputHeightProportion = (TempInputMatchEndRow - TempInputMatchStartRow) / InputImageHeight;
-		//			if (TempInputHeightProportion > 0.6)
-		//			{
-		//				InputMatchStartRow.push_back(TempInputMatchStartRow);
-		//				InputMatchEndRow.push_back(TempInputMatchEndRow);
-		//				InputLicenseHeight.push_back(TempInputLicenseHeight);
-		//				TemplateMatchStartRow.push_back(*itTemplateLine);
-		//				TemplateMatchEndRow.push_back(TemplateMatchStartRow.back() +
-		//					double((TempInputMatchEndRow - TempInputMatchStartRow) / TempInputLicenseHeight)*TemplateHeight);
-
-		//				InputHeightProportion.push_back(TempInputHeightProportion);
-		//			}
-		//			
-		//		}
-
-		//}
-
-		//vector <size_t> SortedMatchIndex = SortIndex(InputHeightProportion);
-
-		//for (vector <size_t>::iterator iMatch = SortedMatchIndex.begin();
-		//	iMatch < SortedMatchIndex.end;
-		//	iMatch++)
-		//{
-		//	Mat ResizedTemplateGradY(
-		//		InputLicenseHeight[*iMatch],
-		//		1,
-		//		CV_8UC1,
-		//		0);
-		//	cv::resize(ProjectYTemplateGradY,
-		//		ResizedTemplateGradY,
-		//		ResizedTemplateGradY.size(),
-		//		0,
-		//		0,
-		//		INTER_LINEAR
-		//	);
-		//	Mat MatchTemplateGradY = ResizedTemplateGradY(Range(0, TemplateMatchEndRow[*iMatch]),Range::all());
-		//	Mat MatchInputGradY = ResizedTemplateGradY(Range(TemplateMatchStartRow[*iMatch], TemplateMatchEndRow[*iMatch]), Range::all());
-		//	cv::meanStdDev(MatchTemplateGradY)
-		//}
-		
-		
- 	//	imshow(MainWindowName, RawInput);
-		//waitKey(0);
-  	}
+	}
 	//返回0并正常退出程序
-	return 0; 
+	return 0;
 }

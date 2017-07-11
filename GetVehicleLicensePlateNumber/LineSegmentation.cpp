@@ -74,9 +74,15 @@ int Dft1D(Mat & Input,Mat & Output)
 	////Output =  DftPlane[0];
 	//// crop the spectrum, if it has an odd number of rows or columns
 	////Output( Range::all(),Range(3, 20)) = DftMagnitude(Range::all(), Range(3, 20));
-	for (int iCol = 5 ;iCol< 20;iCol++)
+	float SumTemp = 0;
+	for (int iFreq = 8 ; iFreq < 16; iFreq++)
 	{
-		Output.at<float>(0, iCol) = DftMagnitude.at<float>(0, iCol);
+		for (int iHarmonic = 1; iHarmonic < 3; iHarmonic++)
+		{
+			SumTemp = SumTemp + DftMagnitude.at<float>(0, iHarmonic*iFreq);
+		}
+		Output.at<float>(0, iFreq) = SumTemp;
+		SumTemp = 0;
 	}
 	normalize(Output, Output,1.0, 0.0, NORM_MINMAX);
 
@@ -174,12 +180,12 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 
 		//创建相应的窗口
-		namedWindow(
-			MainWindowName,//窗口名称
-			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		);
+		//namedWindow(
+		//	MainWindowName,//窗口名称
+		//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+		//);
 
-		resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
+		//resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
 		//imshow(
 		//	MainWindowName,
@@ -266,6 +272,12 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		}
 		Binary_ProjectYGrad = ProjectY_DiffGrad;
+		/*int MedianBlurKernelSize = 2 * int(InputImageHeight*0.003)+1;
+		medianBlur(
+			ProjectY_DiffGrad,
+			Binary_ProjectYGrad,
+			MedianBlurKernelSize
+		);*/
 
 		Mat ProjectYGrad_Histogram(
 			int(InputImageHeight),//矩阵行数
@@ -306,16 +318,16 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 
 		//创建相应的窗口
-		namedWindow(
-			"ProjectYGrad_Histogram",//窗口名称
-			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		);
-		resizeWindow("ProjectYGrad_Histogram", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
+		//namedWindow(
+		//	"ProjectYGrad_Histogram",//窗口名称
+		//	CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
+		//);
+		//resizeWindow("ProjectYGrad_Histogram", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
-		imshow(
-			"ProjectYGrad_Histogram",
-			ProjectYGrad_Histogram
-		);
+		//imshow(
+		//	"ProjectYGrad_Histogram",
+		//	ProjectYGrad_Histogram
+		//);
 		//waitKey(0);
 
 		Mat DftMagnitude(
@@ -336,14 +348,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		for (int iRow = 0; iRow < InputImageHeight ; iRow++)
 		{
-			/*if (Diff_BinaryGradY.at<uchar>(iRow,0) == 255)
-			{
-			HistogramColor = 255;
-			}
-			else
-			{
-			HistogramColor = 100;
-			}*/
+			//if (Diff_BinaryGradY.at<uchar>(iRow, 0) == 255)
+			//{
+			//	HistogramColor = 255;
+			//}
+			//else
+			//{
+			//	HistogramColor = 100;
+			//}
 
 			//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
 			for (int iCol = 0; iCol < DftMagnitude.at<float>(0, iRow)*InputImageWidth; iCol++)
@@ -352,178 +364,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 			}
 		}
 		
-		//创建相应的窗口
-		namedWindow(
-			" DftMagnitude_Histogram",//窗口名称
-			CV_WINDOW_NORMAL//建立一个根据图片自动设置大小的窗口，但不能手动修改尺寸
-		);
-		resizeWindow(" DftMagnitude_Histogram", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
 
-		imshow(
-			" DftMagnitude_Histogram",
-			DftMagnitude_Histogram
-		);
-		//waitKey(0);
-		//vector<size_t> BinaryGradY_EdgeRow;
-		//vector<uchar> BinaryGradY_EdgeAmp;
-
-		//for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		//{
-		//	if (abs(int(ProjectY_BinaryGrad.at<uchar>(iRow + 1, 0)) - int(ProjectY_BinaryGrad.at<uchar>(iRow, 0))) == 255)
-		//	{
-		//		BinaryGradY_EdgeRow.push_back(iRow);
-		//		BinaryGradY_EdgeAmp.push_back(abs(int(Binary_ProjectYGrad.at<uchar>(iRow + 1, 0)) - int(Binary_ProjectYGrad.at<uchar>(iRow, 0))));
-
-		//	}
-		//}
-
-		//vector<size_t> SortedEdgeIndex = SortIndex(BinaryGradY_EdgeAmp);
-		////vector <uchar>  BinaryGradY_SortEdgeAmp;
-		//vector <size_t> DiffGradY_SortEdgeRow;
-		//for (vector<size_t>::iterator itEdgeIndex = SortedEdgeIndex.begin();
-		//	itEdgeIndex < SortedEdgeIndex.end();
-		//	itEdgeIndex++)
-		//{
-		//	//BinaryGradY_SortEdgeAmp.push_back(BinaryGradY_EdgeAmp[*itEdgeIndex]);
-		//	DiffGradY_SortEdgeRow.push_back(BinaryGradY_EdgeRow[*itEdgeIndex]);
-		//}
-
-		//bool FlagIgnoreEdge = false;
-
-		////vector <uchar>  Sort_FilterEdgeAmp;
-		//vector <size_t> SortEdgeRow_LineRow;
-
-		//double MinEdgeDistance = InputImageHeight / TemplateHeight * 80 * 0.6;
-		//SortEdgeRow_LineRow.push_back(DiffGradY_SortEdgeRow[0]);
-
-		//for (size_t iEdge = 1; iEdge < DiffGradY_SortEdgeRow.size(); iEdge++)
-		//{
-		//	for (size_t jEdge = 0; jEdge < SortEdgeRow_LineRow.size(); jEdge++)
-		//	{
-		//		if (abs(int(DiffGradY_SortEdgeRow[iEdge]) - int(SortEdgeRow_LineRow[jEdge])) < MinEdgeDistance)
-		//		{
-		//			FlagIgnoreEdge = true;
-		//			break;
-		//		}
-		//	}
-		//	if (FlagIgnoreEdge == true)
-		//	{
-		//		FlagIgnoreEdge = false;
-		//	}
-		//	else
-		//	{
-		//		SortEdgeRow_LineRow.push_back(DiffGradY_SortEdgeRow[iEdge]);
-		//		//Sort_FilterEdgeAmp.push_back(BinaryGradY_SortEdgeAmp[iEdge]);
-		//	}
-		//}
-
-		//SortEdgeRow_LineRow.push_back(0);
-		//SortEdgeRow_LineRow.push_back(InputImageHeight - 1);
-
-		//sort(SortEdgeRow_LineRow.begin(), SortEdgeRow_LineRow.end());
-		//vector <int64> SortEdgeRow_LineGapWidth;
-		//RawInput.row(SortEdgeRow_LineRow[0]) = Scalar(0, 0, 255);
-		//for (vector<size_t>::iterator itLine = SortEdgeRow_LineRow.begin() + 1;
-		//	itLine < SortEdgeRow_LineRow.end();
-		//	itLine++)
-		//{
-		//	SortEdgeRow_LineGapWidth.push_back(*itLine - *(itLine - 1));
-		//	RawInput.row(*itLine) = Scalar(0, 0, 255);
-		//}
-
-
-
-		//int64 InputMedianLineGapWidth;
-		//if (SortEdgeRow_LineGapWidth.size() % 2 == 1)
-		//{
-		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
-		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1,
-		//		SortEdgeRow_LineGapWidth.end());
-		//	InputMedianLineGapWidth = *(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2);
-		//}
-		//else
-		//{
-		//	partial_sort(SortEdgeRow_LineGapWidth.begin(),
-		//		SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 2,
-		//		SortEdgeRow_LineGapWidth.end());
-		//	InputMedianLineGapWidth = (*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2) +
-		//		*(SortEdgeRow_LineGapWidth.begin() + SortEdgeRow_LineGapWidth.size() / 2 + 1)) / 2;
-		//}
-
-		//sort(SortEdgeRow_LineGapWidth.begin(),
-		//	SortEdgeRow_LineGapWidth.end(),
-		//	[InputMedianLineGapWidth](int64 x, int64 y) {return abs(x- InputMedianLineGapWidth) < abs(y - InputMedianLineGapWidth); });
-
-		//vector <size_t>  InputLineRow = SortEdgeRow_LineRow;
-
-		//vector <int64> InputLineGapWidth = SortEdgeRow_LineGapWidth;
-
-		//Mat InputProjectYGradY = Binary_ProjectYGradY;
-
-		//size_t TempInputLicenseHeight, TempInputMatchStartRow, TempInputMatchEndRow;
-		//double TempInputHeightProportion;
-		//vector <double> InputHeightProportion;
-		//vector <size_t> InputLicenseHeight,InputMatchStartRow, InputMatchEndRow, TemplateMatchStartRow, TemplateMatchEndRow;
-		//for (vector<int64>::iterator itInputGapWidth = InputLineGapWidth.begin();
-		//	itInputGapWidth != InputLineGapWidth.end();
-		//	itInputGapWidth++)
-		//{
-
-		//		for (vector<size_t>::iterator itCrossLine = InputLineRow.begin()+1;
-		//			itCrossLine != TemplateLineRow.end();
-		//			itCrossLine++)
-		//		{
-		//		
-		//			TempInputLicenseHeight = size_t(double(*itInputGapWidth / TemplateMedianLineGapWidth) *TemplateHeight);
-
-		//			TempInputMatchEndRow = *itCrossLine;
-
-		//			TempInputMatchStartRow = (TempInputMatchEndRow - TempInputLicenseHeight) <0 ? 0:(TempInputMatchEndRow - TempInputLicenseHeight);
-		//			
-		//			TempInputHeightProportion = (TempInputMatchEndRow - TempInputMatchStartRow) / InputImageHeight;
-		//			if (TempInputHeightProportion > 0.6)
-		//			{
-		//				InputMatchStartRow.push_back(TempInputMatchStartRow);
-		//				InputMatchEndRow.push_back(TempInputMatchEndRow);
-		//				InputLicenseHeight.push_back(TempInputLicenseHeight);
-		//				TemplateMatchStartRow.push_back(*itTemplateLine);
-		//				TemplateMatchEndRow.push_back(TemplateMatchStartRow.back() +
-		//					double((TempInputMatchEndRow - TempInputMatchStartRow) / TempInputLicenseHeight)*TemplateHeight);
-
-		//				InputHeightProportion.push_back(TempInputHeightProportion);
-		//			}
-		//			
-		//		}
-
-		//}
-
-		//vector <size_t> SortedMatchIndex = SortIndex(InputHeightProportion);
-
-		//for (vector <size_t>::iterator iMatch = SortedMatchIndex.begin();
-		//	iMatch < SortedMatchIndex.end;
-		//	iMatch++)
-		//{
-		//	Mat ResizedTemplateGradY(
-		//		InputLicenseHeight[*iMatch],
-		//		1,
-		//		CV_8UC1,
-		//		0);
-		//	cv::resize(ProjectYTemplateGradY,
-		//		ResizedTemplateGradY,
-		//		ResizedTemplateGradY.size(),
-		//		0,
-		//		0,
-		//		INTER_LINEAR
-		//	);
-		//	Mat MatchTemplateGradY = ResizedTemplateGradY(Range(0, TemplateMatchEndRow[*iMatch]),Range::all());
-		//	Mat MatchInputGradY = ResizedTemplateGradY(Range(TemplateMatchStartRow[*iMatch], TemplateMatchEndRow[*iMatch]), Range::all());
-		//	cv::meanStdDev(MatchTemplateGradY)
-		//}
-
-		
-		//	imshow(MainWindowName, RawInput);
-		//waitKey(0);
-  	}
+   	}
 	//返回0并正常退出程序
 	return 0;
 }
