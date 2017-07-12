@@ -17,28 +17,12 @@ using namespace cv;
 
 //从模板图片中获得的位置信息
 //模板图片的宽、高
-const int TemplateImageWidth = 1044;
-const int TemplateImageHeight = 716;
-//模板图片标题所在区域的宽、高及区域中心的XY坐标
-const double TemplateImageTitleWidth = 684;
-const double TemplateImageTitleHeight = 68;
-const double TemplateImageTitleCenterX = 512;
-const double TemplateImageTitleCenterY = 72;
-//模板图片标题部分的水平间隙高度（水平投影时中文和英文之间出现的空隙宽度）
-const double TemplateImageTitleGapHeight = 5;
-//模板图片标题部分的垂直间隙宽度（垂直投影时文字之间出现的空隙宽度）
-const double TemplateImageTitleGapWidth = 40;
-//模板图片标题部分英文的高度
-const double TemplateImageTitleEnglishHeight = 14;
-//模板图片车牌区域的宽、高及区域中心的XY坐标
-const double TemplateImagePlateWidth = 174;
-const double TemplateImagePlateHeight = 41;
-const double TemplateImagePlateCenterX = 271;
-const double TemplateImagePlateCenterY = 166;
-
 const double TemplateImageLineGapHeight = 83;
 
 double WindowHeight = 700.0;
+
+double MinMatchScale = 0.6;
+double MaxMatchScale = 1.2;
 
 template <typename SortValueType>
 vector<int>  SortIndex(vector<SortValueType> &InputValueVector) {
@@ -62,7 +46,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 {
 
 	//检查命令行所带参数数目是否正确，如果不正确则显示用法说明并退出程序
-	if (ArgumentCount != 3)
+	if (ArgumentCount != 4)
 	{
 		//显示程序用法说明
 		cout << " Usage:  " << ArgumentVector[0] << "ImagePathGlobExpression" << "OutputPath" << endl;
@@ -73,6 +57,126 @@ int main(int ArgumentCount, char** ArgumentVector)
 	String SearchGlobExpression = ArgumentVector[1];
 	String SearchTemplatePath = ArgumentVector[2];
 	String OutputPath = ArgumentVector[3];
+
+	////////////////////////////////////////////////////////////////
+	//新建矩阵RawImageMat用于存储原始图片数据
+	Mat TemplateImage;
+
+	//根据第一个参数的文件路径进行图片读取
+	TemplateImage = imread(
+		SearchTemplatePath,//输入图片路径
+		CV_LOAD_IMAGE_UNCHANGED//以不修改通道类型的方式读取图片
+	);
+
+	//检查读入的Mat是否包含图像数据
+	if (!TemplateImage.data)
+	{
+		//显示图片读取失败提示信息
+		cout << " Error:  Can't read image data from" << SearchTemplatePath << endl;
+		//返回错误码并退出程序
+		return -1;
+	}
+
+	int TemplateImageHeight = TemplateImage.rows;
+	int TemplateImageWidth = TemplateImage.cols;
+
+	//将图片转换成灰阶图像
+	Mat Gray_TemplateImage;
+
+	//获取图片的通道数
+	int NumTemplateImageChannel = TemplateImage.channels();
+
+	//如果图像为3通道彩色图像
+	if (NumTemplateImageChannel == 3)
+	{
+		//将图片由BGR转换成灰阶图像
+		cvtColor(
+			TemplateImage,//输入图片矩阵
+			Gray_TemplateImage,//输出图片矩阵 
+			COLOR_BGR2GRAY//将图片由BGR（OpenCV默认通道格式）转换成灰阶图像
+		);
+	}
+
+	//如果图像为4通道（包含alpha通道）图像，则将其转换成灰阶图像
+	else if (NumTemplateImageChannel == 4)
+	{
+		//将图片由BGRA转换成灰阶图像
+		cvtColor(
+			TemplateImage,//输入图片矩阵
+			Gray_TemplateImage,//输出图片矩阵 
+			COLOR_BGRA2GRAY//将图片由BGRA转换成灰阶图像
+		);
+	}
+	//如果图像已经为单通道灰阶图像，直接将ResizedImageMat赋给GrayImageMat
+	else if (NumTemplateImageChannel == 1)
+	{
+		Gray_TemplateImage = TemplateImage;
+	}
+
+	//如果通道数不为1,3或4，输出错误码并退出程序
+	else
+	{
+		cout << "Unkown image channel type: " << NumTemplateImageChannel;
+	}
+
+
+	//创建矩阵用于存放图像X方向的梯度值
+	Mat TemplateImage_GradY(
+		TemplateImageHeight,//矩阵的第一维（高度）尺寸
+		TemplateImageWidth, //矩阵的第二维（宽度）尺寸
+		CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
+		Scalar(0)//矩阵填充的初始值
+	);
+	//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
+	for (int iRow = 1; iRow < TemplateImageHeight - 1; iRow++)
+	{
+		for (int iCol = 1; iCol < (TemplateImageWidth - 1); iCol++)
+		{
+			TemplateImage_GradY.at<uchar>(iRow, iCol) = uchar(abs(10.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol)) +
+				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol - 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol - 1)) +
+				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol + 1))) / 16);
+		}
+	}
+
+	Mat Binary_GradY;
+	threshold(
+		TemplateImage_GradY, //输入矩阵
+		Binary_GradY, //输出矩阵
+		128, //迭代初始阈值
+		255, //最大值（超过阈值将设为此值）
+		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+	);
+
+
+	//创建X方向梯度投影向量
+	Mat  Binary_ProjectX_GradY(
+		int(TemplateImageHeight),//矩阵行数
+		1,//矩阵列数
+		CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
+		Scalar(0)//矩阵填入的初始值
+	);
+
+	//临时加和变量
+	float SumTemp;
+	for (int iRow = 0; iRow < TemplateImageHeight; iRow++)
+	{
+		//每次叠加前将加和变量清零
+		SumTemp = 0;
+
+		//叠加同一行每一列的梯度值
+		for (int iCol = 0; iCol < TemplateImageWidth; iCol++)
+		{
+			SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
+		}
+		//求叠加值的均值作为水平投影后的梯度值
+		Binary_ProjectX_GradY.at<float>(iRow, 0) = float(SumTemp / TemplateImageWidth);
+	}
+
+	Mat  TemplateImageProjectXGradY = Binary_ProjectX_GradY;
+	vector<int> TemplateLineRow = { 41,108,191,270,357,440,523,606,684 };
+	int TemplateMatchHeight = *TemplateLineRow.rbegin() - *TemplateLineRow.begin();
+
+	////////////////////////////////////////////////////////////////
 
 	//创建用于存储图片路径的String数组
 	vector<String> ImagePathList;
@@ -90,8 +194,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 	//对符合的图片进行遍历
 	for (size_t iInputImage = 0; iInputImage < ImagePathList.size(); iInputImage++)
 	{
+
 		//新建矩阵RawImageMat用于存储原始图片数据
 		Mat InputImage;
+
+		Mat InputImageSegmentResult;
 
 		//根据第一个参数的文件路径进行图片读取
 		InputImage = imread(
@@ -179,7 +286,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		);
 
 
-		//创建X方向梯度投影向量
+		////创建X方向梯度投影向量
 		Mat  Binary_ProjectX_GradY(
 			int(InputImageHeight),//矩阵行数
 			1,//矩阵列数
@@ -263,11 +370,12 @@ int main(int ArgumentCount, char** ArgumentVector)
 		Mat InputImageTemp;
 		Mat Histogram_DiffGradYTemp;
 		float TemplateScaleStep = float(0.01);
-		int NumTemplateScale = int((1.2 - 0.6) / TemplateScaleStep);
-		float CurrentTemplateScale;
+		int NumTemplateScale = int((MaxMatchScale - MinMatchScale) / TemplateScaleStep);
+		float CurrentMatchScale;
 
 		bool IsLineRowChanged = true;
 		bool IsResizedTemplateMatchHeightChanged = true;
+
 
 		int ResizedTemplateMatchHeight;
 		int ResizedTemplateMatchHeightTemp = -1;
@@ -276,16 +384,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 		int ClosestInputMatchStartLine = -1;
 		int ClosestInputMatchEndLine = -1;
 
-		vector<int> TemplateLineRow = { 41,108,191,270,357,440,523,606,684 };
-		int TemplateImageHeight = 712;
-		Mat TemplateGradY = Binary_ProjectX_GradY(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
-		for (float iScale = 0; iScale < NumTemplateScale; iScale++)
+
+		Mat TemplateGradY = TemplateImageProjectXGradY(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
+		for (int iScale = 0; iScale < NumTemplateScale; iScale++)
 		{
-			CurrentTemplateScale = float(0.6 + iScale*TemplateScaleStep);
+			CurrentMatchScale = float(MinMatchScale + iScale*TemplateScaleStep);
 			InputImageTemp = InputImage.clone();
 			Histogram_DiffGradYTemp = Histogram_DiffGradY.clone();
-			MinPeakDistance = InputImageHeight * CurrentTemplateScale * (TemplateImageLineGapHeight / TemplateImageHeight)*0.8;
-			ResizedTemplateMatchHeight = int(CurrentTemplateScale * (*TemplateLineRow.rbegin() - *TemplateLineRow.begin()));
+			MinPeakDistance = InputImageHeight * CurrentMatchScale * (TemplateImageLineGapHeight / TemplateImageHeight);
+			ResizedTemplateMatchHeight = int(InputImageHeight * CurrentMatchScale * TemplateMatchHeight /TemplateImageHeight);
 			if (ResizedTemplateMatchHeightTemp == -1 || ResizedTemplateMatchHeight != ResizedTemplateMatchHeightTemp)
 			{
 				IsResizedTemplateMatchHeightChanged = true;
@@ -350,15 +457,17 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 				vector <int> ResizeShift_TemplateLineRow;
 				ResizeShift_TemplateLineRow.push_back(-1 * ResizedTemplateMatchHeight + 1);
+
 				for( vector<int>::iterator itLine = TemplateLineRow.begin()+1; itLine != TemplateLineRow.end()-1; itLine++)
 				{
-					ResizeShift_TemplateLineRow.push_back(int((*itLine- TemplateLineRow.back())*CurrentTemplateScale));
+
+					ResizeShift_TemplateLineRow.push_back(int((*itLine- TemplateLineRow.back())*ResizedTemplateMatchHeight/TemplateMatchHeight));
 				}
 				ResizeShift_TemplateLineRow.push_back(0);
 				//vector <int> Resize_Shift_TemplateLineRow;
 				//for (vector<int>::iterator itLine = TemplateLineRow.begin(); itLine != TemplateLineRow.end(); itLine++)
 				//{
-				//	Resize_Shift_TemplateLineRow.push_back(int((*itLine - *TemplateLineRow.begin())*CurrentTemplateScale));
+				//	Resize_Shift_TemplateLineRow.push_back(int((*itLine - *TemplateLineRow.begin())*CurrentMatchScale));
 				//}
 
 				bool FlagNextStep = false;
@@ -398,17 +507,17 @@ int main(int ArgumentCount, char** ArgumentVector)
 					itStep++)
 				{
 					InputMatchBegin = *ResizeShift_TemplateLineRow.begin() + *itStep < 0 ?
-						 0 : ResizeShift_TemplateLineRow.back() + *itStep;
+						 0 : *ResizeShift_TemplateLineRow.begin() + *itStep;
 					InputMatchEnd = *ResizeShift_TemplateLineRow.rbegin() + *itStep < InputImageHeight ?
-						*ResizeShift_TemplateLineRow.begin() + *itStep : InputImageHeight;
+						*ResizeShift_TemplateLineRow.rbegin() + *itStep : InputImageHeight;
 
-					TemplateMatchBegin = InputMatchBegin - *ResizeShift_TemplateLineRow.begin();
-					TemplateMatchEnd = InputMatchEnd -*ResizeShift_TemplateLineRow.begin();
+					TemplateMatchBegin = InputMatchBegin - (*ResizeShift_TemplateLineRow.begin() + * itStep);
+					TemplateMatchEnd = InputMatchEnd - (*ResizeShift_TemplateLineRow.begin() + *itStep);
 
 
-					if ((TemplateMatchEnd - TemplateMatchBegin)/ResizedTemplateMatchHeight < 1.0/1.2)
+					if (double(TemplateMatchEnd - TemplateMatchBegin + 1)/ResizedTemplateMatchHeight < 1.0/ MaxMatchScale)
 					{
-						break;
+						continue;
 					}
 					
 					Mat InputData = Binary_ProjectX_GradY(Range(InputMatchBegin, InputMatchEnd), Range::all());
@@ -436,12 +545,33 @@ int main(int ArgumentCount, char** ArgumentVector)
 						CorrCoefCurrentMax = CorrCoef;
 						ClosestInputMatchStartLine = InputMatchBegin;
 						ClosestInputMatchEndLine = InputMatchEnd;
+						InputImageSegmentResult = InputImageTemp.clone();
+						for (vector<int>::iterator itLineRow = ResizeShift_TemplateLineRow.begin();
+							itLineRow != ResizeShift_TemplateLineRow.end();
+							itLineRow++)
+						{
+							if (*itLineRow + *itStep >= 0 && *itLineRow + *itStep < InputImageHeight)
+							{
+								InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
+							}
+							
+						}
 					}
 
 				}
 			}
 			
 		}
+		//寻找文件路径最后一个“\”
+		size_t SepPos = ImagePathList[iInputImage].rfind('\\');//rfind 反向查找
+															   //获取文件夹路径
+		string FolderPath = ImagePathList[iInputImage].substr(0, SepPos);
+		//获取图片文件名
+		string ImageFileName = ImagePathList[iInputImage].substr(SepPos + 1, -1);
+		//获取输出图片保存路径（文件名为输入图像名称前面加上“Result_”）
+		string OutputImagePath = OutputPath + "Result_" + ImageFileName;
+		//进行图像保存
+		imwrite(OutputImagePath, InputImageSegmentResult);
 	}
 	//返回0并正常退出程序
 	return 0;
