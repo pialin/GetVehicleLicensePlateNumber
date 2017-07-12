@@ -112,7 +112,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//如果图像已经为单通道灰阶图像，直接不作转换将ResizedImageMat赋给GrayImageMat
 		else if (NumRawImageChannel == 1)
 		{
-			GrayImageMat = RawImageMat;
+			GrayImage = RawImageMat;
 		}
 
 		//如果通道数不为1,3或4，输出错误码并退出程序
