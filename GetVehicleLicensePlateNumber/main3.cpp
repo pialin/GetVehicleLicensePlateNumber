@@ -367,13 +367,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 			ProjectYPassRect.y = TitleRisingRow[iConvexY];
 			ProjectYPassRect.width = DilatedGradX.cols;
 			ProjectYPassRect.height = TitleFallingRow[iConvexY] - TitleRisingRow[iConvexY];
-			//rectangle(GradXProjectYStem,//绘制矩形的对象
-			//	ProjectYPassRect, //要绘制的矩形
-			//	Scalar(255), //线条的颜色
-			//	3,//线条宽度
-			//	LINE_AA,//线型（抗混叠） 
-			//	0 //??坐标数值（二进制）的小数位数
-			//);
+			rectangle(GradXProjectYStem,//绘制矩形的对象
+				ProjectYPassRect, //要绘制的矩形
+				Scalar(255), //线条的颜色
+				3,//线条宽度
+				LINE_AA,//线型（抗混叠） 
+				0 //??坐标数值（二进制）的小数位数
+			);
 
 
 			//创建X梯度X方向投影向量
