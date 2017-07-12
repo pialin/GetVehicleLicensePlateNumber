@@ -71,7 +71,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 	}
 	//分别读取两个命令参数
 	String SearchGlobExpression = ArgumentVector[1];
-	String OutputPath = ArgumentVector[2];
+	String SearchTemplatePath = ArgumentVector[2];
+	String OutputPath = ArgumentVector[3];
 
 	//创建用于存储图片路径的String数组
 	vector<String> ImagePathList;
@@ -255,25 +256,46 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 
 		bool FlagIgnorePeak = false;
-		vector <int>  PeakRow_LineRow, PeakRow_LineRowTemp;
+		vector <int>  PeakRow_LineRowTemp;
 
 		double MinPeakDistance;
 
 		Mat InputImageTemp;
-
-		double ScaleStep = 0.01;
-		int NumScale = int((1.2 - 0.6) / ScaleStep);
-		double CurrentScale;
+		Mat Histogram_DiffGradYTemp;
+		float TemplateScaleStep = float(0.01);
+		int NumTemplateScale = int((1.2 - 0.6) / TemplateScaleStep);
+		float CurrentTemplateScale;
 
 		bool IsLineRowChanged = true;
+		bool IsResizedTemplateMatchHeightChanged = true;
 
-		for (double iScale = 0; iScale < NumScale; iScale++)
+		int ResizedTemplateMatchHeight;
+		int ResizedTemplateMatchHeightTemp = -1;
+
+		double CorrCoefCurrentMax = 0.0;
+		int ClosestInputMatchStartLine = -1;
+		int ClosestInputMatchEndLine = -1;
+
+		vector<int> TemplateLineRow = { 41,108,191,270,357,440,523,606,684 };
+		int TemplateImageHeight = 712;
+		Mat TemplateGradY = Binary_ProjectX_GradY(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
+		for (float iScale = 0; iScale < NumTemplateScale; iScale++)
 		{
-			CurrentScale = 0.6 + iScale*ScaleStep;
-			InputImageTemp = InputImage;
-			MinPeakDistance = InputImageHeight * CurrentScale * (TemplateImageLineGapHeight / TemplateImageHeight)*0.8;
-
-			vector<int>().swap(PeakRow_LineRow);
+			CurrentTemplateScale = float(0.6 + iScale*TemplateScaleStep);
+			InputImageTemp = InputImage.clone();
+			Histogram_DiffGradYTemp = Histogram_DiffGradY.clone();
+			MinPeakDistance = InputImageHeight * CurrentTemplateScale * (TemplateImageLineGapHeight / TemplateImageHeight)*0.8;
+			ResizedTemplateMatchHeight = int(CurrentTemplateScale * (*TemplateLineRow.rbegin() - *TemplateLineRow.begin()));
+			if (ResizedTemplateMatchHeightTemp == -1 || ResizedTemplateMatchHeight != ResizedTemplateMatchHeightTemp)
+			{
+				IsResizedTemplateMatchHeightChanged = true;
+				ResizedTemplateMatchHeightTemp = ResizedTemplateMatchHeight;
+			}
+			else
+			{
+				IsResizedTemplateMatchHeightChanged = false;
+			}
+			vector<int> PeakRow_LineRow;
 
 			for (size_t iPeak = 0; iPeak < Sort_PeakRow.size(); iPeak++)
 			{
@@ -295,10 +317,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 					InputImageTemp.row(Sort_PeakRow[iPeak]) = Scalar(0, 0, 255);
 
 					//根据投影后的梯度值绘制Stem图，每一行根据Stem值大小绘制不同宽度的Stem
-					Histogram_DiffGradY(Range(Sort_PeakRow[iPeak], Sort_PeakRow[iPeak] + 1), 
+					Histogram_DiffGradYTemp(Range(Sort_PeakRow[iPeak], Sort_PeakRow[iPeak] + 1), 
 						Range(0, int(GradY_DiffGradY.at<float>(Sort_PeakRow[iPeak], 0) / 255.0*InputImageWidth))) = 255;
 				}
 			}
+			sort(PeakRow_LineRow.begin(), PeakRow_LineRow.end());
 			if (PeakRow_LineRowTemp.empty() || PeakRow_LineRow != PeakRow_LineRowTemp)
 			{
 				IsLineRowChanged = true;
@@ -309,9 +332,113 @@ int main(int ArgumentCount, char** ArgumentVector)
 				IsLineRowChanged = false;
 			}
 
-			if (IsLineRowChanged)
-			{
+			
 
+			if (IsLineRowChanged || IsResizedTemplateMatchHeightChanged)
+			{
+				int InputMatchHeight = *(PeakRow_LineRow.rbegin()) - *PeakRow_LineRow.begin();
+				
+				Mat Resize_TemplateGradY;
+				resize(
+					TemplateGradY,
+					Resize_TemplateGradY,
+					Size(1, ResizedTemplateMatchHeight),
+					0,
+					0,
+					INTER_LINEAR
+				);
+
+				vector <int> ResizeShift_TemplateLineRow;
+				ResizeShift_TemplateLineRow.push_back(-1 * ResizedTemplateMatchHeight + 1);
+				for( vector<int>::iterator itLine = TemplateLineRow.begin()+1; itLine != TemplateLineRow.end()-1; itLine++)
+				{
+					ResizeShift_TemplateLineRow.push_back(int((*itLine- TemplateLineRow.back())*CurrentTemplateScale));
+				}
+				ResizeShift_TemplateLineRow.push_back(0);
+				//vector <int> Resize_Shift_TemplateLineRow;
+				//for (vector<int>::iterator itLine = TemplateLineRow.begin(); itLine != TemplateLineRow.end(); itLine++)
+				//{
+				//	Resize_Shift_TemplateLineRow.push_back(int((*itLine - *TemplateLineRow.begin())*CurrentTemplateScale));
+				//}
+
+				bool FlagNextStep = false;
+				vector<int> TemplateMatchStep;
+				for (int iStep = *PeakRow_LineRow.begin(); iStep < InputImageHeight + ResizedTemplateMatchHeight; iStep++)
+				{
+					for (vector<int> ::iterator itTemplateLine = ResizeShift_TemplateLineRow.begin();
+						itTemplateLine != ResizeShift_TemplateLineRow.end();
+						itTemplateLine++ )
+					{
+						if (*itTemplateLine+iStep >= 0 && *itTemplateLine+iStep < InputImageHeight)
+						{
+							for (vector<int> ::iterator itInputLine = PeakRow_LineRow.begin();
+								itInputLine != PeakRow_LineRow.end();
+								itInputLine++ )
+							{
+								if (*itTemplateLine+ iStep == *itInputLine)
+								{
+									FlagNextStep = true;
+									break;
+								}
+							}
+						}
+						if (FlagNextStep == true) break;
+					}
+					if (FlagNextStep == true)
+					{
+						FlagNextStep = false;
+						TemplateMatchStep.push_back(iStep);
+						continue;
+					}
+				}
+				int InputMatchBegin, InputMatchEnd, TemplateMatchBegin, TemplateMatchEnd;
+				
+				for(vector<int>::iterator itStep = TemplateMatchStep.begin();
+					itStep != TemplateMatchStep.end();
+					itStep++)
+				{
+					InputMatchBegin = *ResizeShift_TemplateLineRow.begin() + *itStep < 0 ?
+						 0 : ResizeShift_TemplateLineRow.back() + *itStep;
+					InputMatchEnd = *ResizeShift_TemplateLineRow.rbegin() + *itStep < InputImageHeight ?
+						*ResizeShift_TemplateLineRow.begin() + *itStep : InputImageHeight;
+
+					TemplateMatchBegin = InputMatchBegin - *ResizeShift_TemplateLineRow.begin();
+					TemplateMatchEnd = InputMatchEnd -*ResizeShift_TemplateLineRow.begin();
+
+
+					if ((TemplateMatchEnd - TemplateMatchBegin)/ResizedTemplateMatchHeight < 1.0/1.2)
+					{
+						break;
+					}
+					
+					Mat InputData = Binary_ProjectX_GradY(Range(InputMatchBegin, InputMatchEnd), Range::all());
+					Mat TemplateData = Resize_TemplateGradY(Range(TemplateMatchBegin, TemplateMatchEnd), Range::all());
+
+					Mat  DataMeanMat,DataStdDevMat;
+					cv::meanStdDev(InputData, DataMeanMat, DataStdDevMat);
+					float InputDataMean = float(DataMeanMat.at<double>(0, 0));
+					float InputDataStdDev = float(DataStdDevMat.at<double>(0, 0));
+					cv::meanStdDev(TemplateData, DataMeanMat, DataStdDevMat);
+					float TemplateDataMean = float(DataMeanMat.at<double>(0, 0));
+					float TemplateDataStdDev = float(DataStdDevMat.at<double>(0, 0));
+
+					double CorrCoef = 0.0;
+					for (int iRow = 0; iRow < InputData.rows; iRow++)
+					{
+						CorrCoef = CorrCoef + InputData.at<float>(iRow, 0) * TemplateData.at<float>(iRow, 0);
+					}
+
+					CorrCoef = (CorrCoef - InputData.rows*InputDataMean*TemplateDataMean) /
+						(InputData.rows * InputDataStdDev * TemplateDataStdDev);
+
+					if (CorrCoef > CorrCoefCurrentMax)
+					{
+						CorrCoefCurrentMax = CorrCoef;
+						ClosestInputMatchStartLine = InputMatchBegin;
+						ClosestInputMatchEndLine = InputMatchEnd;
+					}
+
+				}
 			}
 			
 		}
