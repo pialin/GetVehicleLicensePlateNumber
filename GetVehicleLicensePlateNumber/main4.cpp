@@ -9,8 +9,16 @@
 //添加数学运算库头文件
 //#include <cmath>
 
+#include <fstream> //为了使用ifstream判断文件是否存在
+//添加TinyXml2头文件
+#include "tinyxml2.h" //为了使用TinyXml2
+
+
 //使用C++标准库命名空间
 using namespace std;
+////使用TinyXml2命名空间
+//using namespace tinyxml2;
+
 
 //使用OpenCV库命名空间
 using namespace cv;
@@ -179,41 +187,103 @@ int main(int ArgumentCount, char** ArgumentVector)
 	////////////////////////////////////////////////////////////////
 
 	//创建用于存储图片路径的String数组
-	vector<String> ImagePathList;
+	vector<String> XmlPathList;
 
 	//根据输入Glob表达式查找符合的图片
 	glob(
 		SearchGlobExpression,//文件查找Glob表达式
-		ImagePathList, //输出图像文件列表
+		XmlPathList, //输出图像文件列表
 		false//不进行递归，即不对子文件夹进行搜索
 	);
 
+	
 	int InputImageHeight;
 	int InputImageWidth;
 
 	//对符合的图片进行遍历
-	for (size_t iInputImage = 0; iInputImage < ImagePathList.size(); iInputImage++)
+	for (vector<String>::reverse_iterator itInputXmlPath = XmlPathList.rbegin();
+		itInputXmlPath < XmlPathList.rend();
+		itInputXmlPath++)
 	{
 
+		ifstream XmlFileStream(*itInputXmlPath);
+		if (!XmlFileStream)
+		{
+			cout << "Can't find XML file: '" << *itInputXmlPath <<
+				"'. This item would be skipped." << endl;
+			continue;
+		}
+
+		tinyxml2::XMLDocument XmlDoc;
+		XmlDoc.LoadFile((*itInputXmlPath).c_str());
+		tinyxml2::XMLElement *LabelElement = XmlDoc.FirstChildElement("annotation")->FirstChildElement("object");
+		Rect DetectAreaRect;
+		bool IsDetectAreaRectFound = false;
+		if (LabelElement == nullptr)
+		{
+			cout << "Can't find \"object\" element of XML file: '" << *itInputXmlPath <<
+				"'. This item would be skipped." << endl;
+		}
+		else {
+
+			while (LabelElement)
+			{
+
+				tinyxml2::XMLElement *LabelNameElement = LabelElement->FirstChildElement("name");
+				if (LabelNameElement != nullptr)
+				{
+					String LabelName = LabelNameElement->GetText();
+
+					if (LabelName == "14.DetectArea")
+					{
+						tinyxml2::XMLElement *LabelRectElement = LabelElement->FirstChildElement("bndbox");
+
+						DetectAreaRect.x = atoi(LabelRectElement->FirstChildElement("xmin")->GetText());
+						DetectAreaRect.y = atoi(LabelRectElement->FirstChildElement("ymin")->GetText());
+						DetectAreaRect.width = atoi(LabelRectElement->FirstChildElement("xmax")->GetText()) - DetectAreaRect.x;
+						DetectAreaRect.height = atoi(LabelRectElement->FirstChildElement("ymax")->GetText()) - DetectAreaRect.y;
+						IsDetectAreaRectFound = true;
+						break;
+					}
+				}
+
+
+				LabelElement = LabelElement->NextSiblingElement("object");
+			}
+
+		}
+		if (!IsDetectAreaRectFound)
+		{
+			cout << "Can't not find '14.DetectedArea' element of XML file: '" << *itInputXmlPath << 
+				"'. This item would be skipped."<<endl;
+			continue;
+		}
+		size_t LastDotPos = (*itInputXmlPath).rfind('.');//rfind 反向查找'.'
+		//获取输出图片保存路径（文件名为输入图像名称前面加上“Result_”）
+		String InputImagePath = (*itInputXmlPath).substr(0, LastDotPos) + ".png";
 		//新建矩阵RawImageMat用于存储原始图片数据
 		Mat InputImage;
 
 		Mat InputImageSegmentResult;
 
 		//根据第一个参数的文件路径进行图片读取
-		InputImage = imread(
-			ImagePathList[iInputImage],//输入图片路径
+		Mat InputImageAll = imread(
+			InputImagePath,//输入图片路径
 			CV_LOAD_IMAGE_UNCHANGED//以不修改通道类型的方式读取图片
 		);
 
+		
 		//检查读入的Mat是否包含图像数据
-		if (!InputImage.data)
+		if (!InputImageAll.data)
 		{
 			//显示图片读取失败提示信息
-			cout << " Error:  Can't read image data from" << ImagePathList[iInputImage]  << endl;
-			//返回错误码并退出程序
-			return -1;
+			cout << " Error:  Can't read image data from '" << InputImagePath <<
+				"'. This item would be skipped." << endl;
+			//返回错误码并跳过此图片
+			continue;
 		}
+
+		InputImage = InputImageAll(DetectAreaRect);
 
 		InputImageHeight = InputImage.rows;
 		InputImageWidth = InputImage.cols;
@@ -552,7 +622,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 						{
 							if (*itLineRow + *itStep >= 0 && *itLineRow + *itStep < InputImageHeight)
 							{
-								InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
+								if (distance(ResizeShift_TemplateLineRow.begin(),itLineRow) == 2)
+								{
+									InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(0, 255, 0);
+								}
+								else
+								{ 
+									InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
+								}
 							}
 							
 						}
@@ -563,11 +640,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 			
 		}
 		//寻找文件路径最后一个“\”
-		size_t SepPos = ImagePathList[iInputImage].rfind('\\');//rfind 反向查找
+		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
 															   //获取文件夹路径
-		string FolderPath = ImagePathList[iInputImage].substr(0, SepPos);
+		string FolderPath = InputImagePath.substr(0, SepPos);
 		//获取图片文件名
-		string ImageFileName = ImagePathList[iInputImage].substr(SepPos + 1, -1);
+		string ImageFileName = InputImagePath.substr(SepPos + 1, -1);
 		//获取输出图片保存路径（文件名为输入图像名称前面加上“Result_”）
 		string OutputImagePath = OutputPath + "Result_" + ImageFileName;
 		//进行图像保存
