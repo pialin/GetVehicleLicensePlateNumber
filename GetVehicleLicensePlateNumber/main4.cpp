@@ -129,26 +129,34 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 
 	//创建矩阵用于存放图像X方向的梯度值
-	Mat TemplateImage_GradY(
+	Mat TemplateImage_Grad(
 		TemplateImageHeight,//矩阵的第一维（高度）尺寸
 		TemplateImageWidth, //矩阵的第二维（宽度）尺寸
 		CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
 		Scalar(0)//矩阵填充的初始值
 	);
+
+
+	uchar TempGradX,TempGradY;
 	//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
 	for (int iRow = 1; iRow < TemplateImageHeight - 1; iRow++)
 	{
 		for (int iCol = 1; iCol < (TemplateImageWidth - 1); iCol++)
 		{
-			TemplateImage_GradY.at<uchar>(iRow, iCol) = uchar(abs(10.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol)) +
+			TempGradY = uchar(abs(10.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol)) +
 				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol - 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol - 1)) +
 				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol + 1))) / 16);
+
+			TempGradX = uchar(abs(10.0 * (Gray_TemplateImage.at<uchar>(iRow, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow, iCol + 1)) +
+				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow + 1, iCol - 1)) +
+				3.0 * (Gray_TemplateImage.at<uchar>(iRow - 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol - 1))) / 16);
+			TemplateImage_Grad.at<uchar>(iRow, iCol) = TempGradX + TempGradY;
 		}
 	}
 
 	Mat Binary_GradY;
 	threshold(
-		TemplateImage_GradY, //输入矩阵
+		TemplateImage_Grad, //输入矩阵
 		Binary_GradY, //输出矩阵
 		128, //迭代初始阈值
 		255, //最大值（超过阈值将设为此值）
@@ -157,7 +165,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 
 	//创建X方向梯度投影向量
-	Mat  Binary_ProjectX_GradY(
+	Mat  Binary_ProjectX_Grad(
 		int(TemplateImageHeight),//矩阵行数
 		1,//矩阵列数
 		CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
@@ -177,10 +185,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 			SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
 		}
 		//求叠加值的均值作为水平投影后的梯度值
-		Binary_ProjectX_GradY.at<float>(iRow, 0) = float(SumTemp / TemplateImageWidth);
+		Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / TemplateImageWidth);
 	}
 
-	Mat  TemplateImageProjectXGradY = Binary_ProjectX_GradY;
+	Mat  TemplateImageProjectXGrad = Binary_ProjectX_Grad;
 	vector<int> TemplateLineRow = { 41,108,191,270,357,440,523,606,684 };
 	int TemplateMatchHeight = *TemplateLineRow.rbegin() - *TemplateLineRow.begin();
 
@@ -266,6 +274,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		Mat InputImageSegmentResult;
 
+		vector<int> SegmentLineRow;
+
 		//根据第一个参数的文件路径进行图片读取
 		Mat InputImageAll = imread(
 			InputImagePath,//输入图片路径
@@ -327,7 +337,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 			cout << "Unkown image channel type: " << NumInputImageChannel;
 		}
 
-
 		//创建矩阵用于存放图像X方向的梯度值
 		Mat InputImage_GradY(
 			int(InputImageHeight),//矩阵的第一维（高度）尺寸
@@ -335,6 +344,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 			CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
 			Scalar(0)//矩阵填充的初始值
 		);
+
+		//创建矩阵用于存放图像X方向的梯度值
+		Mat InputImage_Grad(
+			int(InputImageHeight),//矩阵的第一维（高度）尺寸
+			int(InputImageWidth), //矩阵的第二维（宽度）尺寸
+			CV_8UC1,//矩阵的值类型，在这里是单通道8位无符号整数 
+			Scalar(0)//矩阵填充的初始值
+		);
+		uchar TempGradX;
 		//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
 		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
 		{
@@ -343,7 +361,47 @@ int main(int ArgumentCount, char** ArgumentVector)
 				InputImage_GradY.at<uchar>(iRow, iCol) = uchar (abs(10.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol) - Gray_InputImage.at<uchar>(iRow - 1, iCol)) +
 					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol - 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol - 1)) +
 					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol + 1))) / 16);
+
+				TempGradX = uchar(abs(10.0 * (Gray_InputImage.at<uchar>(iRow , iCol+1) - Gray_InputImage.at<uchar>(iRow, iCol+1)) +
+					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow + 1, iCol - 1)) +
+					3.0 * (Gray_InputImage.at<uchar>(iRow - 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol - 1))) / 16);
+				InputImage_Grad.at<uchar>(iRow, iCol) = TempGradX + InputImage_GradY.at<uchar>(iRow, iCol);
 			}
+		}
+
+		
+
+		Mat Binary_Grad;
+		threshold(
+			InputImage_Grad, //输入矩阵
+			Binary_GradY, //输出矩阵
+			128, //迭代初始阈值
+			255, //最大值（超过阈值将设为此值）
+			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+		);
+
+		////创建X方向梯度投影向量
+		Mat  Binary_ProjectX_Grad(
+			int(InputImageHeight),//矩阵行数
+			1,//矩阵列数
+			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
+			Scalar(0)//矩阵填入的初始值
+		);
+
+		//临时加和变量
+		float SumTemp;
+		for (int iRow = 0; iRow < InputImageHeight; iRow++)
+		{
+			//每次叠加前将加和变量清零
+			SumTemp = 0;
+
+			//叠加同一行每一列的梯度值
+			for (int iCol = 0; iCol < InputImageWidth; iCol++)
+			{
+				SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
+			}
+			//求叠加值的均值作为水平投影后的梯度值
+			Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
 		}
 
 		Mat Binary_GradY;
@@ -355,7 +413,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 		);
 
-
 		////创建X方向梯度投影向量
 		Mat  Binary_ProjectX_GradY(
 			int(InputImageHeight),//矩阵行数
@@ -364,8 +421,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 			Scalar(0)//矩阵填入的初始值
 		);
 
-		//临时加和变量
-		float SumTemp;
 		for (int iRow = 0; iRow < InputImageHeight; iRow++)
 		{
 			//每次叠加前将加和变量清零
@@ -455,13 +510,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 		int ClosestInputMatchEndLine = -1;
 
 
-		Mat TemplateGradY = TemplateImageProjectXGradY(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
+		Mat TemplateGrad = TemplateImageProjectXGrad(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
 		for (int iScale = 0; iScale < NumTemplateScale; iScale++)
 		{
 			CurrentMatchScale = float(MinMatchScale + iScale*TemplateScaleStep);
 			InputImageTemp = InputImage.clone();
 			Histogram_DiffGradYTemp = Histogram_DiffGradY.clone();
-			MinPeakDistance = InputImageHeight * CurrentMatchScale * (TemplateImageLineGapHeight / TemplateImageHeight);
+			MinPeakDistance = InputImageHeight * CurrentMatchScale * (TemplateImageLineGapHeight / TemplateImageHeight) * 0.8;
 			ResizedTemplateMatchHeight = int(InputImageHeight * CurrentMatchScale * TemplateMatchHeight /TemplateImageHeight);
 			if (ResizedTemplateMatchHeightTemp == -1 || ResizedTemplateMatchHeight != ResizedTemplateMatchHeightTemp)
 			{
@@ -515,10 +570,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 			{
 				int InputMatchHeight = *(PeakRow_LineRow.rbegin()) - *PeakRow_LineRow.begin();
 				
-				Mat Resize_TemplateGradY;
+				Mat Resize_TemplateGrad;
 				resize(
-					TemplateGradY,
-					Resize_TemplateGradY,
+					TemplateGrad,
+					Resize_TemplateGrad,
 					Size(1, ResizedTemplateMatchHeight),
 					0,
 					0,
@@ -590,8 +645,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 						continue;
 					}
 					
-					Mat InputData = Binary_ProjectX_GradY(Range(InputMatchBegin, InputMatchEnd), Range::all());
-					Mat TemplateData = Resize_TemplateGradY(Range(TemplateMatchBegin, TemplateMatchEnd), Range::all());
+					Mat InputData = Binary_ProjectX_Grad(Range(InputMatchBegin, InputMatchEnd), Range::all());
+					Mat TemplateData = Resize_TemplateGrad(Range(TemplateMatchBegin, TemplateMatchEnd), Range::all());
 
 					Mat  DataMeanMat,DataStdDevMat;
 					cv::meanStdDev(InputData, DataMeanMat, DataStdDevMat);
@@ -620,7 +675,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 							itLineRow != ResizeShift_TemplateLineRow.end();
 							itLineRow++)
 						{
-							if (*itLineRow + *itStep >= 0 && *itLineRow + *itStep < InputImageHeight)
+							SegmentLineRow.push_back(*itLineRow + *itStep);
+							if (SegmentLineRow.back() >= 0 && SegmentLineRow.back() < InputImageHeight)
 							{
 								if (distance(ResizeShift_TemplateLineRow.begin(),itLineRow) == 2)
 								{
@@ -633,12 +689,34 @@ int main(int ArgumentCount, char** ArgumentVector)
 							}
 							
 						}
+						
 					}
 
 				}
 			}
 			
 		}
+		//改到这里 下面需要判断行是否完整 如果完整的话求梯度的沿Y轴方向的投影 比较大小
+		vector <int>;
+		for (vector<int>::iterator itLineRow = SegmentLineRow.begin();
+			itLineRow != SegmentLineRow.end();
+			itLineRow++)
+		{
+			if (*itLineRow >= 0 && *itLineRow  < InputImageHeight)
+			{
+				if (distance(SegmentLineRow.begin(), itLineRow) == 2)
+				{
+					InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(0, 255, 0);
+				}
+				else
+				{
+					InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
+				}
+				
+			}
+			InputImage_Grad(Range(), Range::all());
+		}
+
 		//寻找文件路径最后一个“\”
 		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
 															   //获取文件夹路径
