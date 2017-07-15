@@ -29,7 +29,7 @@ const double TemplateImageLineGapHeight = 83;
 
 double WindowHeight = 700.0;
 
-double MinMatchScale = 0.6;
+double MinMatchScale = 1;
 double MaxMatchScale = 1.2;
 
 template <typename SortValueType>
