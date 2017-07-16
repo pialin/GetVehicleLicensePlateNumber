@@ -154,10 +154,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 	}
 
-	Mat Binary_GradY;
+	Mat Binary_Grad;
 	threshold(
 		TemplateImage_Grad, //输入矩阵
-		Binary_GradY, //输出矩阵
+		Binary_Grad, //输出矩阵
 		128, //迭代初始阈值
 		255, //最大值（超过阈值将设为此值）
 		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
@@ -182,7 +182,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//叠加同一行每一列的梯度值
 		for (int iCol = 0; iCol < TemplateImageWidth; iCol++)
 		{
-			SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
+			SumTemp += float(Binary_Grad.at<uchar>(iRow, iCol));
 		}
 		//求叠加值的均值作为水平投影后的梯度值
 		Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / TemplateImageWidth);
@@ -369,9 +369,18 @@ int main(int ArgumentCount, char** ArgumentVector)
 			}
 		}
 
-		
-
 		Mat Binary_Grad;
+		threshold(
+			InputImage_GradY, //输入矩阵
+			Binary_Grad, //输出矩阵
+			128, //迭代初始阈值
+			255, //最大值（超过阈值将设为此值）
+			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+		);
+
+
+
+		Mat Binary_GradY;
 		threshold(
 			InputImage_Grad, //输入矩阵
 			Binary_GradY, //输出矩阵
@@ -381,7 +390,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		);
 
 		////创建X方向梯度投影向量
-		Mat  Binary_ProjectX_Grad(
+		Mat  Binary_ProjectX_GradY(
 			int(InputImageHeight),//矩阵行数
 			1,//矩阵列数
 			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
@@ -404,36 +413,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
 		}
 
-		Mat Binary_GradY;
-		threshold(
-			InputImage_GradY, //输入矩阵
-			Binary_GradY, //输出矩阵
-			128, //迭代初始阈值
-			255, //最大值（超过阈值将设为此值）
-			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-		);
 
-		////创建X方向梯度投影向量
-		Mat  Binary_ProjectX_GradY(
-			int(InputImageHeight),//矩阵行数
-			1,//矩阵列数
-			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
-			Scalar(0)//矩阵填入的初始值
-		);
-
-		for (int iRow = 0; iRow < InputImageHeight; iRow++)
-		{
-			//每次叠加前将加和变量清零
-			SumTemp = 0;
-
-			//叠加同一行每一列的梯度值
-			for (int iCol = 0; iCol < InputImageWidth; iCol++)
-			{
-				SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
-			}
-			//求叠加值的均值作为水平投影后的梯度值
-			Binary_ProjectX_GradY.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
-		}
 
 		//创建X方向梯度投影差分向量
 		Mat  GradY_DiffGradY(
@@ -697,25 +677,129 @@ int main(int ArgumentCount, char** ArgumentVector)
 			
 		}
 		//改到这里 下面需要判断行是否完整 如果完整的话求梯度的沿Y轴方向的投影 比较大小
-		vector <int>;
+		int SumTemp;
+		Mat Binary_ProjectY_Grad
+		(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+		Mat ProjectY_Binary_Grad
+		(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+		vector <float> LineDutyRatio;
 		for (vector<int>::iterator itLineRow = SegmentLineRow.begin();
-			itLineRow != SegmentLineRow.end();
+			itLineRow != SegmentLineRow.end()-1;
 			itLineRow++)
 		{
-			if (*itLineRow >= 0 && *itLineRow  < InputImageHeight)
+			
+			if (*itLineRow >= 0 && *(itLineRow+1)  < InputImageHeight)
 			{
-				if (distance(SegmentLineRow.begin(), itLineRow) == 2)
+				
+				for (int iCol = 0;
+					iCol < InputImageWidth;
+					iCol++)
 				{
-					InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(0, 255, 0);
-				}
-				else
-				{
-					InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
+					SumTemp = 0;
+					for (int iRow = *itLineRow;
+					iRow < *(itLineRow + 1);
+					iRow++)
+					{
+						SumTemp = SumTemp + Binary_Grad.at<uchar>(iRow, iCol);
+					}
+					Binary_ProjectY_Grad.at<0, iCol> = uchar(SumTemp / (*(itLineRow + 1) - *itLineRow));
 				}
 				
+				threshold(
+					Binary_ProjectY_Grad,
+					ProjectY_Binary_Grad,
+					128, //迭代初始阈值
+					1, //最大值（超过阈值将设为此值）
+					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+				);
+
+				SumTemp = 0;
+				for (int iCol = 0;
+					iCol < InputImageWidth;
+					iCol++)
+				{
+
+					SumTemp = SumTemp + ProjectY_Binary_Grad.at<uchar>(0, iCol);
+				}
+				LineDutyRatio.push_back(SumTemp / InputImageWidth);
+
 			}
-			InputImage_Grad(Range(), Range::all());
+			else
+			{
+				LineDutyRatio.push_back(1);//如果行不在图片中，则赋1（因为后续想找最小值）
+			}
 		}
+		int MinDutyRatioLineIndex = distance(LineDutyRatio.begin(), max_element(LineDutyRatio.begin(), LineDutyRatio.end()));
+		int PlateNumberLineIndex;
+		if (MinDutyRatioLineIndex >=2)
+		{
+			
+				if ( LineDutyRatio[MinDutyRatioLineIndex-2]> && LineDutyRatio[MinDutyRatioLineIndex - 2] < &&
+					LineDutyRatio[MinDutyRatioLineIndex - 1]> && LineDutyRatio[MinDutyRatioLineIndex - 1] < &&
+					LineDutyRatio[MinDutyRatioLineIndex]> && LineDutyRatio[MinDutyRatioLineIndex] < ）
+				{
+					PlateNumberLineIndex = MinDutyRatioLineIndex - 1;
+				}
+
+		}
+		else
+		{
+			PlateNumberLineIndex = 1;
+		}
+
+		Mat PlateNumberRow_Binary_Grad;
+
+		threshold(
+			InputImage_Grad(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex+1]),Range::all()),
+			PlateNumberRow_Binary_Grad,
+			128, //迭代初始阈值
+			255, //最大值（超过阈值将设为此值）
+			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+		);
+		Mat PlateNumberRow_Binary_ProjectY_Grad(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+
+		
+		for (int iCol = 0; iCol < InputImageWidth; iCol++)
+		{
+			SumTemp = 0;
+			for (int iRow = 0; iRow < PlateNumberRow_Binary_Grad.rows; iRow++)
+			{
+				SumTemp = SumTemp + PlateNumberRow_Binary_Grad.at<uchar>(iRow, iCol);
+			}
+			PlateNumberRow_Binary_ProjectY_Grad.at<uchar>(0, iCol) = uchar(SumTemp / PlateNumberRow_Binary_Grad.rows);
+		}
+
+
+		float PlateNumberAnnotationStartPos = 0.2;
+		float PlateNumberAnnotationWidth = 0.1;
+		float PlateNumberBlankStartPos = PlateNumberAnnotationStartPos + PlateNumberAnnotationWidth;
+		float PlateNumberWidth = 0.15;
+		float VehicleTypeAnnotationStartPos = 0.7;
+		float VehicleTypeAnnotationWidth = 0.1;
+		float VehicleTypeBlankStartPos = VehicleTypeAnnotationStartPos + VehicleTypeAnnotationWidth;
+		float VehicleTypeWidth = 0.15;
+
+
+
+
+
+
+
 
 		//寻找文件路径最后一个“\”
 		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
