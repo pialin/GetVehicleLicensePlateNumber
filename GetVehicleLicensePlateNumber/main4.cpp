@@ -29,7 +29,7 @@ const double TemplateImageLineGapHeight = 83;
 
 double WindowHeight = 700.0;
 
-double MinMatchScale = 1;
+double MinMatchScale = 0.6;
 double MaxMatchScale = 1.2;
 
 template <typename SortValueType>
@@ -87,6 +87,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 	int TemplateImageHeight = TemplateImage.rows;
 	int TemplateImageWidth = TemplateImage.cols;
+	double TemplateImageRatio = double(TemplateImageWidth) / TemplateImageHeight;
 
 	//将图片转换成灰阶图像
 	Mat Gray_TemplateImage;
@@ -150,7 +151,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			TempGradX = uchar(abs(10.0 * (Gray_TemplateImage.at<uchar>(iRow, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow, iCol + 1)) +
 				3.0 * (Gray_TemplateImage.at<uchar>(iRow + 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow + 1, iCol - 1)) +
 				3.0 * (Gray_TemplateImage.at<uchar>(iRow - 1, iCol + 1) - Gray_TemplateImage.at<uchar>(iRow - 1, iCol - 1))) / 16);
-			TemplateImage_Grad.at<uchar>(iRow, iCol) = TempGradX + TempGradY;
+			TemplateImage_Grad.at<uchar>(iRow, iCol) = (TempGradX + TempGradY)/2;
 		}
 	}
 
@@ -274,7 +275,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		Mat InputImageSegmentResult;
 
-		vector<int> SegmentLineRow;
+		vector<int> SegmentLineRow(TemplateLineRow.size());
 
 		//根据第一个参数的文件路径进行图片读取
 		Mat InputImageAll = imread(
@@ -365,13 +366,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 				TempGradX = uchar(abs(10.0 * (Gray_InputImage.at<uchar>(iRow , iCol+1) - Gray_InputImage.at<uchar>(iRow, iCol+1)) +
 					3.0 * (Gray_InputImage.at<uchar>(iRow + 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow + 1, iCol - 1)) +
 					3.0 * (Gray_InputImage.at<uchar>(iRow - 1, iCol + 1) - Gray_InputImage.at<uchar>(iRow - 1, iCol - 1))) / 16);
-				InputImage_Grad.at<uchar>(iRow, iCol) = TempGradX + InputImage_GradY.at<uchar>(iRow, iCol);
+				InputImage_Grad.at<uchar>(iRow, iCol) = (TempGradX + InputImage_GradY.at<uchar>(iRow, iCol))/2;
 			}
 		}
 
 		Mat Binary_Grad;
 		threshold(
-			InputImage_GradY, //输入矩阵
+			InputImage_Grad, //输入矩阵
 			Binary_Grad, //输出矩阵
 			128, //迭代初始阈值
 			255, //最大值（超过阈值将设为此值）
@@ -382,7 +383,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		Mat Binary_GradY;
 		threshold(
-			InputImage_Grad, //输入矩阵
+			InputImage_GradY, //输入矩阵
 			Binary_GradY, //输出矩阵
 			128, //迭代初始阈值
 			255, //最大值（超过阈值将设为此值）
@@ -410,7 +411,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 				SumTemp += float(Binary_GradY.at<uchar>(iRow, iCol));
 			}
 			//求叠加值的均值作为水平投影后的梯度值
-			Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
+			Binary_ProjectX_GradY.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
 		}
 
 
@@ -485,9 +486,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 		int ResizedTemplateMatchHeight;
 		int ResizedTemplateMatchHeightTemp = -1;
 
-		double CorrCoefCurrentMax = 0.0;
-		int ClosestInputMatchStartLine = -1;
-		int ClosestInputMatchEndLine = -1;
+		double MaxCorrCoef = 0.0;
+		double ClosestMatchScale = 0.0;
 
 
 		Mat TemplateGrad = TemplateImageProjectXGrad(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
@@ -645,79 +645,80 @@ int main(int ArgumentCount, char** ArgumentVector)
 					CorrCoef = (CorrCoef - InputData.rows*InputDataMean*TemplateDataMean) /
 						(InputData.rows * InputDataStdDev * TemplateDataStdDev);
 
-					if (CorrCoef > CorrCoefCurrentMax)
+					if (CorrCoef > MaxCorrCoef)
 					{
-						CorrCoefCurrentMax = CorrCoef;
-						ClosestInputMatchStartLine = InputMatchBegin;
-						ClosestInputMatchEndLine = InputMatchEnd;
-						InputImageSegmentResult = InputImageTemp.clone();
-						for (vector<int>::iterator itLineRow = ResizeShift_TemplateLineRow.begin();
-							itLineRow != ResizeShift_TemplateLineRow.end();
-							itLineRow++)
+						MaxCorrCoef = CorrCoef;
+						ClosestMatchScale = CurrentMatchScale;
+		
+						for (int  iLineRow =0;
+							iLineRow < ResizeShift_TemplateLineRow.size();
+							iLineRow++)
 						{
-							SegmentLineRow.push_back(*itLineRow + *itStep);
-							if (SegmentLineRow.back() >= 0 && SegmentLineRow.back() < InputImageHeight)
-							{
-								if (distance(ResizeShift_TemplateLineRow.begin(),itLineRow) == 2)
-								{
-									InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(0, 255, 0);
-								}
-								else
-								{ 
-									InputImageSegmentResult.row(*itLineRow + *itStep) = Scalar(255, 0, 0);
-								}
-							}
-							
+							SegmentLineRow[iLineRow] = (ResizeShift_TemplateLineRow[iLineRow] + *itStep);
 						}
-						
 					}
 
 				}
 			}
 			
 		}
+
+		InputImageSegmentResult = InputImageTemp.clone();
+		for (int iLineRow = 0;iLineRow < SegmentLineRow.size();iLineRow++)
+		{
+			if (SegmentLineRow[iLineRow] >= 0 && SegmentLineRow[iLineRow] < InputImageHeight)
+			{
+				if (iLineRow == 2)
+				{
+					InputImageSegmentResult.row(SegmentLineRow[iLineRow]) = Scalar(0, 255, 0);
+				}
+				else
+				{
+					InputImageSegmentResult.row(SegmentLineRow[iLineRow]) = Scalar(255, 0, 0);
+				}
+			}
+
+		}
 		//改到这里 下面需要判断行是否完整 如果完整的话求梯度的沿Y轴方向的投影 比较大小
-		int SumTemp;
-		Mat Binary_ProjectY_Grad
-		(
-			1,
-			InputImageWidth,
-			CV_8UC1,
-			Scalar(0)
-		);
-		Mat ProjectY_Binary_Grad
-		(
-			1,
-			InputImageWidth,
-			CV_8UC1,
-			Scalar(0)
-		);
 		vector <float> LineDutyRatio;
-		for (vector<int>::iterator itLineRow = SegmentLineRow.begin();
-			itLineRow != SegmentLineRow.end()-1;
-			itLineRow++)
+		float MinDutyRatio = 1;
+		int MinDutyRatioLineIndex = -1;
+		int PlateNumberLineIndex;
+
+		Mat ProjectY_LineGrad
+		(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+
+		Mat ProjectY_Binary_LineGrad
+		(
+			int(SegmentLineRow.size() - 1),
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+ 		for (int iLine =0;iLine < SegmentLineRow.size()-1;iLine++)
 		{
 			
-			if (*itLineRow >= 0 && *(itLineRow+1)  < InputImageHeight)
+			if (SegmentLineRow[iLine] >= 0 && SegmentLineRow[iLine+1]  < InputImageHeight)
 			{
-				
-				for (int iCol = 0;
-					iCol < InputImageWidth;
-					iCol++)
+				for (int iCol = 0;iCol < InputImageWidth;iCol++)
 				{
 					SumTemp = 0;
-					for (int iRow = *itLineRow;
-					iRow < *(itLineRow + 1);
+					for (int iRow = SegmentLineRow[iLine];iRow < SegmentLineRow[iLine+1];
 					iRow++)
 					{
 						SumTemp = SumTemp + Binary_Grad.at<uchar>(iRow, iCol);
 					}
-					Binary_ProjectY_Grad.at<0, iCol> = uchar(SumTemp / (*(itLineRow + 1) - *itLineRow));
+					ProjectY_LineGrad.at<uchar>(0, iCol) = uchar(SumTemp / (SegmentLineRow[iLine+1] - SegmentLineRow[iLine]));
 				}
 				
 				threshold(
-					Binary_ProjectY_Grad,
-					ProjectY_Binary_Grad,
+					ProjectY_LineGrad,
+					ProjectY_Binary_LineGrad.row(iLine),
 					128, //迭代初始阈值
 					1, //最大值（超过阈值将设为此值）
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
@@ -729,24 +730,36 @@ int main(int ArgumentCount, char** ArgumentVector)
 					iCol++)
 				{
 
-					SumTemp = SumTemp + ProjectY_Binary_Grad.at<uchar>(0, iCol);
+					SumTemp = SumTemp + ProjectY_Binary_LineGrad.row(iLine)
+						.at<uchar>(0, iCol);
 				}
 				LineDutyRatio.push_back(SumTemp / InputImageWidth);
+				if (LineDutyRatio.back()< MinDutyRatio)
+				{
+					MinDutyRatio = LineDutyRatio.back();
+					MinDutyRatioLineIndex = iLine;
+				}
 
 			}
 			else
 			{
-				LineDutyRatio.push_back(1);//如果行不在图片中，则赋1（因为后续想找最小值）
+				LineDutyRatio.push_back(NAN);
 			}
+			
 		}
-		int MinDutyRatioLineIndex = distance(LineDutyRatio.begin(), max_element(LineDutyRatio.begin(), LineDutyRatio.end()));
-		int PlateNumberLineIndex;
-		if (MinDutyRatioLineIndex >=2)
+		
+		double OwnerLineDutyRatio = 0.1;
+		double PlateNumberLineDutyRatio = 0.6;
+		double TitleLineDutyRatio = 0.5;
+		if (MinDutyRatioLineIndex >2)
 		{
 			
-				if ( LineDutyRatio[MinDutyRatioLineIndex-2]> && LineDutyRatio[MinDutyRatioLineIndex - 2] < &&
-					LineDutyRatio[MinDutyRatioLineIndex - 1]> && LineDutyRatio[MinDutyRatioLineIndex - 1] < &&
-					LineDutyRatio[MinDutyRatioLineIndex]> && LineDutyRatio[MinDutyRatioLineIndex] < ）
+				if ( LineDutyRatio[MinDutyRatioLineIndex-2]> 0.8*TitleLineDutyRatio &&
+					LineDutyRatio[MinDutyRatioLineIndex - 2] <  1.2*TitleLineDutyRatio &&
+					LineDutyRatio[MinDutyRatioLineIndex - 1]> 0.8*PlateNumberLineDutyRatio &&
+					LineDutyRatio[MinDutyRatioLineIndex - 1] < 1.2*PlateNumberLineDutyRatio &&
+					LineDutyRatio[MinDutyRatioLineIndex]> 0.8*OwnerLineDutyRatio &&
+					LineDutyRatio[MinDutyRatioLineIndex] <1.2*OwnerLineDutyRatio )
 				{
 					PlateNumberLineIndex = MinDutyRatioLineIndex - 1;
 				}
@@ -757,50 +770,213 @@ int main(int ArgumentCount, char** ArgumentVector)
 			PlateNumberLineIndex = 1;
 		}
 
-		Mat PlateNumberRow_Binary_Grad;
+		Mat Binary_PlateNumberLineGrad  = ProjectY_Binary_LineGrad.row(PlateNumberLineIndex);
 
-		threshold(
-			InputImage_Grad(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex+1]),Range::all()),
-			PlateNumberRow_Binary_Grad,
-			128, //迭代初始阈值
-			255, //最大值（超过阈值将设为此值）
-			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-		);
-		Mat PlateNumberRow_Binary_ProjectY_Grad(
-			1,
-			InputImageWidth,
-			CV_8UC1,
-			Scalar(0)
-		);
+		double TemplateImageHeadBlankStartCol = 0.0;
+		double TemplateImagePlateNumberAnnotationStartCol = 37.0;
+		double TemplateImagePlateNumberBlankStartCol = 159.0;
+		double TemplateImageVehicleTypeAnnotationStartCol = 452.0;
+		double TemplateImageVehicleTypeBlankStartCol = 575.0;
+		double TemplateImageTailBlanStartCol = 1003.0;
+		double TemplateImageTailBlanEndCol = 1042.0;
 
-		
-		for (int iCol = 0; iCol < InputImageWidth; iCol++)
+		int TemplateXWidth = int(ClosestMatchScale*InputImageHeight*TemplateImageRatio);
+
+		int TemplateXHeadBlankStartCol =0;
+		int TemplateXPlateNumberAnnotationStartCol = int(TemplateImagePlateNumberAnnotationStartCol/
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+
+		int TemplateXPlateNumberBlankStartCol = int(TemplateImagePlateNumberBlankStartCol /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+
+		int TemplateXVehicleTypeAnnotationStartCol = int(TemplateImageVehicleTypeAnnotationStartCol /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+
+		int TemplateXVehicleTypeBlankStartCol = int(TemplateImageVehicleTypeBlankStartCol /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+
+		int TemplateXTailBlankStartCol = int(TemplateImageTailBlanStartCol /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+
+		int TemplateXHeadBlankEndCol = TemplateXWidth - 1;
+
+		int MatchXStartCol =  - TemplateXPlateNumberAnnotationStartCol;
+
+		int MatchXEndCol = InputImageWidth  + InputImageWidth - TemplateXTailBlankStartCol -  TemplateXWidth;
+
+
+		int NumTemplateXHeadBlankOne = 0;
+		int NumTemplateXPlateNumberAnnotationOne = 83;
+		int NumTemplateXPlateNumberBlankOne = 124;
+		int NumTemplateXVehicleTypeAnnotationOne = 108;
+		int NumTemplateXVehicleTypeBlankOne = 46;
+		int NumTemplateXTailBlankOne = 0;
+
+
+		int NumHeadBlankOne = 0;
+		int NumPlateNumberAnnotationOne = 0;
+		int NumPlateNumberBlankOne = 0;
+		int NumVehicleTypeAnnotationOne = 0;
+		int NumVehicleTypeBlankOne = 0;
+		int NumTailBlankOne = 0;
+
+		vector <int> DiffNumOneSum;
+		vector <int> DiffCenterCol;
+		//MatchXStartCol = 0;
+
+		for (int iCol = MatchXStartCol; iCol < MatchXStartCol+ TemplateXWidth; iCol++)
 		{
-			SumTemp = 0;
-			for (int iRow = 0; iRow < PlateNumberRow_Binary_Grad.rows; iRow++)
+			if (iCol >= 0 && iCol<InputImageHeight)
 			{
-				SumTemp = SumTemp + PlateNumberRow_Binary_Grad.at<uchar>(iRow, iCol);
+				int iTemplateXCol = iCol - MatchXStartCol;
+				if (iTemplateXCol >= TemplateXHeadBlankStartCol && iTemplateXCol < TemplateXPlateNumberAnnotationStartCol)
+				{
+					NumHeadBlankOne = NumHeadBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iCol);
+				}
+				else if (iTemplateXCol >= TemplateXPlateNumberAnnotationStartCol && iTemplateXCol < TemplateXPlateNumberBlankStartCol)
+				{
+					NumPlateNumberAnnotationOne = NumPlateNumberAnnotationOne + Binary_PlateNumberLineGrad.at<uchar>(0, iCol);
+				}
+				else if (iTemplateXCol >= TemplateXPlateNumberBlankStartCol && iTemplateXCol < TemplateXVehicleTypeAnnotationStartCol)
+				{
+					NumPlateNumberBlankOne = NumPlateNumberBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iCol);
+				}
+				else if (iTemplateXCol >= TemplateXVehicleTypeAnnotationStartCol && iTemplateXCol < TemplateXVehicleTypeBlankStartCol)
+				{
+					NumVehicleTypeAnnotationOne = NumVehicleTypeAnnotationOne + Binary_PlateNumberLineGrad.at<uchar>(0,iCol);
+				}
+				else if (iTemplateXCol >= TemplateXVehicleTypeBlankStartCol && iTemplateXCol < TemplateXTailBlankStartCol)
+				{
+					NumVehicleTypeBlankOne = NumVehicleTypeBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0,iCol);
+				}
+				else if (iTemplateXCol >= TemplateXTailBlankStartCol && iTemplateXCol < TemplateXWidth)
+				{
+					NumTailBlankOne = NumTailBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0,iCol);
+				}
+
 			}
-			PlateNumberRow_Binary_ProjectY_Grad.at<uchar>(0, iCol) = uchar(SumTemp / PlateNumberRow_Binary_Grad.rows);
+
 		}
 
+		DiffNumOneSum.push_back(abs(NumHeadBlankOne - NumTemplateXHeadBlankOne)+
+			abs(NumPlateNumberAnnotationOne - NumTemplateXPlateNumberAnnotationOne)+
+			abs(NumPlateNumberBlankOne - NumTemplateXPlateNumberBlankOne) + 
+			abs(NumVehicleTypeAnnotationOne - NumTemplateXVehicleTypeAnnotationOne)+
+			abs(NumVehicleTypeBlankOne - NumTemplateXVehicleTypeBlankOne) + 
+			abs(NumTailBlankOne - NumTemplateXTailBlankOne));
 
-		float PlateNumberAnnotationStartPos = 0.2;
-		float PlateNumberAnnotationWidth = 0.1;
-		float PlateNumberBlankStartPos = PlateNumberAnnotationStartPos + PlateNumberAnnotationWidth;
-		float PlateNumberWidth = 0.15;
-		float VehicleTypeAnnotationStartPos = 0.7;
-		float VehicleTypeAnnotationWidth = 0.1;
-		float VehicleTypeBlankStartPos = VehicleTypeAnnotationStartPos + VehicleTypeAnnotationWidth;
-		float VehicleTypeWidth = 0.15;
+		
+		int iColCursor;
+		for (int iStartCol = MatchXStartCol+1; iStartCol < MatchXEndCol; iStartCol++)
+		{
 
+			iColCursor = iStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumHeadBlankOne = NumHeadBlankOne  - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
+			
+			iColCursor = iStartCol + TemplateXPlateNumberAnnotationStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumHeadBlankOne = NumHeadBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+				NumPlateNumberAnnotationOne = NumPlateNumberAnnotationOne - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			iColCursor = iStartCol + TemplateXPlateNumberBlankStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumPlateNumberAnnotationOne = NumPlateNumberAnnotationOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+				NumPlateNumberBlankOne = NumPlateNumberBlankOne - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			iColCursor = iStartCol + TemplateXVehicleTypeAnnotationStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumPlateNumberBlankOne = NumPlateNumberBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+				NumVehicleTypeAnnotationOne = NumVehicleTypeAnnotationOne - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			iColCursor = iStartCol + TemplateXVehicleTypeBlankStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumVehicleTypeAnnotationOne = NumVehicleTypeAnnotationOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+				NumVehicleTypeBlankOne = NumVehicleTypeBlankOne - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			iColCursor = iStartCol + TemplateXTailBlankStartCol - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumVehicleTypeBlankOne = NumVehicleTypeBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+				NumTailBlankOne = NumTailBlankOne - Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			iColCursor = iStartCol + TemplateXWidth - 1;
+			if (iColCursor >= 0 && iColCursor  < InputImageWidth)
+			{
+				NumTailBlankOne = NumTailBlankOne + Binary_PlateNumberLineGrad.at<uchar>(0, iColCursor);
+			}
 
+			DiffNumOneSum.push_back(abs(NumHeadBlankOne - NumTemplateXHeadBlankOne) +
+				abs(NumPlateNumberAnnotationOne - NumTemplateXPlateNumberAnnotationOne) +
+				abs(NumPlateNumberBlankOne - NumTemplateXPlateNumberBlankOne) +
+				abs(NumVehicleTypeAnnotationOne - NumTemplateXVehicleTypeAnnotationOne) +
+				abs(NumVehicleTypeBlankOne - NumTemplateXVehicleTypeBlankOne) +
+				abs(NumTailBlankOne - NumTemplateXTailBlankOne));
+			DiffCenterCol.push_back(abs(iStartCol + TemplateXWidth / 2 - InputImageWidth / 2));
+		}
 
+		int MinDiffNumOneSum = *min_element(DiffNumOneSum.begin(), DiffNumOneSum.end());
+		vector<int>::iterator itMinDiffNumOneSum =  find(DiffNumOneSum.begin(), DiffNumOneSum.end(), MinDiffNumOneSum);
+		int MinDiffCenterCol = InputImageWidth;
+		while (itMinDiffNumOneSum != DiffNumOneSum.end())
+		{
+			itMinDiffNumOneSum = find(itMinDiffNumOneSum+1 , DiffNumOneSum.end(), MinDiffNumOneSum);
+			if (DiffCenterCol[distance(DiffNumOneSum.begin(), itMinDiffNumOneSum)] < MinDiffCenterCol)
+			{
+				MinDiffCenterCol = DiffCenterCol[distance(DiffNumOneSum.begin(), itMinDiffNumOneSum)];
+			}
+			
+		}
+
+		int ClosestMatchStartCol = int(MatchXStartCol + distance(DiffNumOneSum.begin(), itMinDiffNumOneSum));
+
+		if (ClosestMatchStartCol >= 0 && ClosestMatchStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol, ClosestMatchStartCol + 1)) = Scalar(0, 255, 0, 255);
+		}
+		if (ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol >= 0 && ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol, ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol + 1)) = Scalar(0, 255, 0,255);
+		}
+		if (ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol, ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+		}
+		if (ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol >= 0 && ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol, ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol + 1)) = Scalar(0, 255, 0,255);
+		}
+		if (ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol, ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+		}
+		if (ClosestMatchStartCol + TemplateXTailBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXTailBlankStartCol < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXTailBlankStartCol, ClosestMatchStartCol + TemplateXTailBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+		}
+
+		if (ClosestMatchStartCol + TemplateXWidth - 1 >= 0 && ClosestMatchStartCol + TemplateXWidth - 1 < InputImageWidth)
+		{
+			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
+				Range(ClosestMatchStartCol + TemplateXWidth -1 , ClosestMatchStartCol + TemplateXWidth )) = Scalar(0, 255, 0);
+		}
 		//寻找文件路径最后一个“\”
 		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
 															   //获取文件夹路径
