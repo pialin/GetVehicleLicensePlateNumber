@@ -190,7 +190,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 	}
 
 	Mat  TemplateImageProjectXGrad = Binary_ProjectX_Grad;
-	vector<int> TemplateLineRow = { 41,108,191,270,357,440,523,606,684 };
+	vector<int> TemplateLineRow = { 40,107,190,269,356,439,522,605,683 };
 	int TemplateMatchHeight = *TemplateLineRow.rbegin() - *TemplateLineRow.begin();
 
 	////////////////////////////////////////////////////////////////
@@ -210,8 +210,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 	int InputImageWidth;
 
 	//对符合的图片进行遍历
-	for (vector<String>::reverse_iterator itInputXmlPath = XmlPathList.rbegin();
-		itInputXmlPath < XmlPathList.rend();
+	for (vector<String>::iterator itInputXmlPath = XmlPathList.begin();
+		itInputXmlPath < XmlPathList.end();
 		itInputXmlPath++)
 	{
 
@@ -378,6 +378,29 @@ int main(int ArgumentCount, char** ArgumentVector)
 			255, //最大值（超过阈值将设为此值）
 			CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 		);
+
+		////创建X方向梯度投影向量
+		Mat  Binary_ProjectX_Grad(
+			int(InputImageHeight),//矩阵行数
+			1,//矩阵列数
+			CV_32FC1,//矩阵值的类型（8位无符号整数单通道）
+			Scalar(0)//矩阵填入的初始值
+		);
+
+		//临时加和变量
+		for (int iRow = 0; iRow < InputImageHeight; iRow++)
+		{
+			//每次叠加前将加和变量清零
+			SumTemp = 0;
+
+			//叠加同一行每一列的梯度值
+			for (int iCol = 0; iCol < InputImageWidth; iCol++)
+			{
+				SumTemp += float(Binary_Grad.at<uchar>(iRow, iCol));
+			}
+			//求叠加值的均值作为水平投影后的梯度值
+			Binary_ProjectX_Grad.at<float>(iRow, 0) = float(SumTemp / InputImageWidth);
+		}
 
 
 
@@ -700,6 +723,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 			CV_8UC1,
 			Scalar(0)
 		);
+
+		int TemplateXWidth = int(ClosestMatchScale*InputImageHeight*TemplateImageRatio);
  		for (int iLine =0;iLine < SegmentLineRow.size()-1;iLine++)
 		{
 			
@@ -733,7 +758,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 					SumTemp = SumTemp + ProjectY_Binary_LineGrad.row(iLine)
 						.at<uchar>(0, iCol);
 				}
-				LineDutyRatio.push_back(SumTemp / InputImageWidth);
+				LineDutyRatio.push_back(SumTemp / TemplateXWidth);
 				if (LineDutyRatio.back()< MinDutyRatio)
 				{
 					MinDutyRatio = LineDutyRatio.back();
@@ -748,21 +773,23 @@ int main(int ArgumentCount, char** ArgumentVector)
 			
 		}
 		
-		double OwnerLineDutyRatio = 0.1;
-		double PlateNumberLineDutyRatio = 0.6;
-		double TitleLineDutyRatio = 0.5;
+		double TitleLineDutyRatio =0.456292033;
+		double PlateNumberLineDutyRatio = 0.400573683;
+		double OwnerLineDutyRatio = 0.140249759;
 		if (MinDutyRatioLineIndex >2)
 		{
 			
-				if ( LineDutyRatio[MinDutyRatioLineIndex-2]> 0.8*TitleLineDutyRatio &&
-					LineDutyRatio[MinDutyRatioLineIndex - 2] <  1.2*TitleLineDutyRatio &&
-					LineDutyRatio[MinDutyRatioLineIndex - 1]> 0.8*PlateNumberLineDutyRatio &&
-					LineDutyRatio[MinDutyRatioLineIndex - 1] < 1.2*PlateNumberLineDutyRatio &&
-					LineDutyRatio[MinDutyRatioLineIndex]> 0.8*OwnerLineDutyRatio &&
-					LineDutyRatio[MinDutyRatioLineIndex] <1.2*OwnerLineDutyRatio )
-				{
-					PlateNumberLineIndex = MinDutyRatioLineIndex - 1;
-				}
+			if (LineDutyRatio[MinDutyRatioLineIndex - 2] / LineDutyRatio[MinDutyRatioLineIndex - 1] >= 0.8*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
+				LineDutyRatio[MinDutyRatioLineIndex - 2] / LineDutyRatio[MinDutyRatioLineIndex - 1] < 1.2*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
+				LineDutyRatio[MinDutyRatioLineIndex - 1] / LineDutyRatio[MinDutyRatioLineIndex] >= 0.8*PlateNumberLineDutyRatio / OwnerLineDutyRatio  &&
+				LineDutyRatio[MinDutyRatioLineIndex - 1] / LineDutyRatio[MinDutyRatioLineIndex] < 1.2*PlateNumberLineDutyRatio / OwnerLineDutyRatio)
+			{
+				PlateNumberLineIndex = MinDutyRatioLineIndex - 1;
+			}
+			else
+			{
+				PlateNumberLineIndex = 1;
+			}
 
 		}
 		else
@@ -780,7 +807,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		double TemplateImageTailBlanStartCol = 1003.0;
 		double TemplateImageTailBlanEndCol = 1042.0;
 
-		int TemplateXWidth = int(ClosestMatchScale*InputImageHeight*TemplateImageRatio);
+		
 
 		int TemplateXHeadBlankStartCol =0;
 		int TemplateXPlateNumberAnnotationStartCol = int(TemplateImagePlateNumberAnnotationStartCol/
@@ -802,14 +829,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		int MatchXStartCol =  - TemplateXPlateNumberAnnotationStartCol;
 
-		int MatchXEndCol = InputImageWidth  + InputImageWidth - TemplateXTailBlankStartCol -  TemplateXWidth;
+		int MatchXEndCol = InputImageWidth  - 1 - TemplateXTailBlankStartCol;
 
 
 		int NumTemplateXHeadBlankOne = 0;
 		int NumTemplateXPlateNumberAnnotationOne = 83;
-		int NumTemplateXPlateNumberBlankOne = 124;
+		int NumTemplateXPlateNumberBlankOne = 122;
 		int NumTemplateXVehicleTypeAnnotationOne = 108;
-		int NumTemplateXVehicleTypeBlankOne = 46;
+		int NumTemplateXVehicleTypeBlankOne = 47;
 		int NumTemplateXTailBlankOne = 0;
 
 
@@ -822,7 +849,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		vector <int> DiffNumOneSum;
 		vector <int> DiffCenterCol;
-		//MatchXStartCol = 0;
+
 
 		for (int iCol = MatchXStartCol; iCol < MatchXStartCol+ TemplateXWidth; iCol++)
 		{
@@ -864,7 +891,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			abs(NumVehicleTypeAnnotationOne - NumTemplateXVehicleTypeAnnotationOne)+
 			abs(NumVehicleTypeBlankOne - NumTemplateXVehicleTypeBlankOne) + 
 			abs(NumTailBlankOne - NumTemplateXTailBlankOne));
-
+		DiffCenterCol.push_back(abs(MatchXStartCol + TemplateXWidth / 2 - InputImageWidth / 2));
 		
 		int iColCursor;
 		for (int iStartCol = MatchXStartCol+1; iStartCol < MatchXEndCol; iStartCol++)
@@ -927,49 +954,51 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 
 		int MinDiffNumOneSum = *min_element(DiffNumOneSum.begin(), DiffNumOneSum.end());
-		vector<int>::iterator itMinDiffNumOneSum =  find(DiffNumOneSum.begin(), DiffNumOneSum.end(), MinDiffNumOneSum);
-		int MinDiffCenterCol = InputImageWidth;
+		
+		int IndexDiffCenterCol = 0;
+		int MinDiffCenterCol = DiffCenterCol[0];
+		vector<int>::iterator itMinDiffNumOneSum = find(DiffNumOneSum.begin(), DiffNumOneSum.end(), MinDiffNumOneSum);
 		while (itMinDiffNumOneSum != DiffNumOneSum.end())
 		{
-			itMinDiffNumOneSum = find(itMinDiffNumOneSum+1 , DiffNumOneSum.end(), MinDiffNumOneSum);
 			if (DiffCenterCol[distance(DiffNumOneSum.begin(), itMinDiffNumOneSum)] < MinDiffCenterCol)
 			{
-				MinDiffCenterCol = DiffCenterCol[distance(DiffNumOneSum.begin(), itMinDiffNumOneSum)];
+				IndexDiffCenterCol = int(distance(DiffNumOneSum.begin(), itMinDiffNumOneSum));
+				MinDiffCenterCol = DiffCenterCol[IndexDiffCenterCol];
 			}
-			
+			itMinDiffNumOneSum = find(itMinDiffNumOneSum+1 , DiffNumOneSum.end(), MinDiffNumOneSum);
 		}
 
-		int ClosestMatchStartCol = int(MatchXStartCol + distance(DiffNumOneSum.begin(), itMinDiffNumOneSum));
+		int ClosestMatchStartCol = int(MatchXStartCol + IndexDiffCenterCol);
 
 		if (ClosestMatchStartCol >= 0 && ClosestMatchStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol, ClosestMatchStartCol + 1)) = Scalar(0, 255, 0, 255);
+				Range(ClosestMatchStartCol, ClosestMatchStartCol + 1)) = Scalar(0, 255, 0);
 		}
 		if (ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol >= 0 && ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol, ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol + 1)) = Scalar(0, 255, 0,255);
+				Range(ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol, ClosestMatchStartCol + TemplateXPlateNumberAnnotationStartCol + 1)) = Scalar(0, 255, 0);
 		}
 		if (ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol, ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+				Range(ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol, ClosestMatchStartCol + TemplateXPlateNumberBlankStartCol + 1)) = Scalar(0, 255, 0);
 		}
 		if (ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol >= 0 && ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol, ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol + 1)) = Scalar(0, 255, 0,255);
+				Range(ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol, ClosestMatchStartCol + TemplateXVehicleTypeAnnotationStartCol + 1)) = Scalar(0, 255, 0);
 		}
 		if (ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol, ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+				Range(ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol, ClosestMatchStartCol + TemplateXVehicleTypeBlankStartCol + 1)) = Scalar(0, 255, 0);
 		}
 		if (ClosestMatchStartCol + TemplateXTailBlankStartCol >= 0 && ClosestMatchStartCol + TemplateXTailBlankStartCol < InputImageWidth)
 		{
 			InputImageSegmentResult(Range(SegmentLineRow[PlateNumberLineIndex], SegmentLineRow[PlateNumberLineIndex + 1]),
-				Range(ClosestMatchStartCol + TemplateXTailBlankStartCol, ClosestMatchStartCol + TemplateXTailBlankStartCol + 1)) = Scalar(0, 255, 0,255);
+				Range(ClosestMatchStartCol + TemplateXTailBlankStartCol, ClosestMatchStartCol + TemplateXTailBlankStartCol + 1)) = Scalar(0, 255, 0);
 		}
 
 		if (ClosestMatchStartCol + TemplateXWidth - 1 >= 0 && ClosestMatchStartCol + TemplateXWidth - 1 < InputImageWidth)
