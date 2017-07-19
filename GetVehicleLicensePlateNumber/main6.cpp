@@ -781,6 +781,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 			CV_8UC1,
 			Scalar(0.0)
 		);
+
+		Mat Binary_TitleLineGrad;
+		bool IsTitleLineExist = false;
+
 		int LineStartRow, LineEndRow;
 		for (int iLine = 0; iLine < SegmentLineRow.size() - 1; iLine++)
 		{
@@ -810,7 +814,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 				LineEndRow = InputImageHeight - 1;
 			}
 
-
 			if (LineStartRow<LineEndRow)
 			{
 				threshold(
@@ -820,6 +823,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 					255, //最大值（超过阈值将设为此值）
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 				);
+
+				if (iLine == 0)
+				{
+					IsTitleLineExist = true;
+					Binary_TitleLineGrad = Binary_LineGrad.clone();
+
+				}
+
 				for (int iCol = 0; iCol < InputImageWidth; iCol++)
 				{
 					SumTemp = 0;
@@ -837,6 +848,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 					1, //最大值（超过阈值将设为此值）
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 				);
+
+
 
 				SumTemp = 0;
 				for (int iCol = 0;
@@ -860,6 +873,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 			}
 
 		}
+
 
 		double TitleLineDutyRatio = 0.458213270;
 		double PlateNumberLineDutyRatio = 0.412103742;
@@ -891,51 +905,112 @@ int main(int ArgumentCount, char** ArgumentVector)
 		int TemplateImageTitleStartCol = 193;
 		int TemplateImageTitleEndCol = 832;
 
+		int TemplateXLeftEdgeCol = 0;
+		int TemplateXTitleStartCol = int(double(TemplateImageTitleStartCol) /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+		int TemplateXTitleEndCol = int(double(TemplateImageTitleEndCol) /
+			(TemplateImageWidth - 1)*(TemplateXWidth - 1));
+		int TemplateXRightEdgeCol = TemplateXWidth;
+
+		Mat Close_ProjectY_TitleLineGrad(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+		);
+		Mat ProjectY_Binary_TitleLineGrad(
+			1,
+			InputImageWidth,
+			CV_8UC1,
+			Scalar(0)
+			);
 		//TODO：从这里开始编程找到最合适的标题左右范围 方法为逐个像素长度步进先膨胀后腐蚀 找到最接近的行分割估计出的长度
-
-		double MaxTitleBlankDiff = *max_element(TitleBlankDiff.begin(), TitleBlankDiff.end());
-
-		int IndexMinCenterColDiff;
-		int MinCenterColDiff = InputImageWidth;
-		vector<double>::iterator itMaxTitleBlankDiff = find(TitleBlankDiff.begin(), TitleBlankDiff.end(), MaxTitleBlankDiff);
-		while (itMaxTitleBlankDiff != TitleBlankDiff.end())
+		int TitleStartCol = 0, TitleEndCol= 0;
+		int LastTitleStartCol = 0, LastTitleEndCol = 0;
+		Mat Binary_Close_TitleLineGrad = Binary_TitleLineGrad.clone();
+		if (IsTitleLineExist == true)
 		{
-			if (CenterColDiff[distance(TitleBlankDiff.begin(), itMaxTitleBlankDiff)] < MinCenterColDiff)
+			//IsTitleLineExist = false;
+			Mat CloseStructingElemnet;
+			//进行形态学闭操作
+			int TitleWidthTemp = 0;
+			int TitleStartColTemp, TitleEndColTemp;
+			for (int iElementSize = 3 ; iElementSize < InputImageWidth;iElementSize = iElementSize+2)
 			{
-				IndexMinCenterColDiff = int(distance(TitleBlankDiff.begin(), itMaxTitleBlankDiff));
-				MinCenterColDiff = CenterColDiff[IndexMinCenterColDiff];
+				
+				if (((TitleEndCol  - TitleStartCol+1)- (TemplateXTitleEndCol - TemplateXTitleStartCol))*
+					((LastTitleEndCol - LastTitleStartCol + 1) - (TemplateXTitleEndCol - TemplateXTitleStartCol)) <= 0)
+				{
+					break;
+				}
+				LastTitleStartCol = TitleStartCol;
+				LastTitleEndCol = TitleEndCol;
+				CloseStructingElemnet = getStructuringElement(MORPH_RECT, Size(iElementSize,1 ));
+				morphologyEx(Binary_TitleLineGrad, Binary_Close_TitleLineGrad, MORPH_CLOSE, CloseStructingElemnet);
+
+				for (int iCol = 0; iCol < InputImageWidth; iCol++)
+				{
+					SumTemp = 0;
+					for (int iRow = 0; iRow < Binary_Close_TitleLineGrad.rows; iRow++)
+					{
+						SumTemp = SumTemp + Binary_Close_TitleLineGrad.at<uchar>(iRow, iCol);
+					}
+					Close_ProjectY_TitleLineGrad.at<uchar>(0, iCol) = uchar(SumTemp / Binary_Close_TitleLineGrad.rows);
+				}
+
+				cv::threshold(
+					Close_ProjectY_TitleLineGrad,
+					ProjectY_Binary_TitleLineGrad,
+					128, //迭代初始阈值
+					1, //最大值（超过阈值将设为此值）
+					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
+				);
+
+				if (ProjectY_Binary_TitleLineGrad.at<uchar>(0,0) = 1)
+				{
+					TitleStartColTemp = -1;
+				}
+				for (int iCol = 1; iCol < InputImageWidth; iCol++) 
+				{
+					if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) == 1 && ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol-1) == 0)
+					{
+						TitleStartColTemp = iCol;
+
+					}
+					else if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) == 0 && ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol - 1) == 1)
+					{
+						TitleEndColTemp = iCol;
+						if (TitleEndColTemp - TitleStartColTemp +1 >= (TitleEndCol - TitleStartCol+ 1))
+						{
+							TitleStartCol = TitleStartColTemp;
+							TitleEndCol = TitleEndColTemp;
+						}
+					}
+				}
+
 			}
-			itMaxTitleBlankDiff = find(itMaxTitleBlankDiff + 1, TitleBlankDiff.end(), MaxTitleBlankDiff);
-		}
 
-		int ClosestMatchStartCol = int(MatchXStartCol + IndexMinCenterColDiff);
+		}
+		if (IsTitleLineExist == true)
+		{
+			//if ((LastTitleEndCol - LastTitleStartCol + 1) - (TemplateXTitleEndCol - TemplateXTitleStartCol) <
+			//	(TitleEndCol - TitleStartCol + 1) - (TemplateXTitleEndCol - TemplateXTitleStartCol))
+			//{
+			//	TitleStartCol = LastTitleStartCol;
+			//	TitleEndCol = LastTitleEndCol;
+			//}
+			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
+				Range(TitleStartCol, TitleStartCol + 1)) = Scalar(0, 0, 255);
+			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
+				Range(TitleEndCol, TitleEndCol + 1)) = Scalar(0, 0, 255);
+			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
+				Range(LastTitleStartCol, LastTitleStartCol + 1)) = Scalar(0, 0, 255);
+			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
+				Range(LastTitleEndCol, LastTitleEndCol + 1)) = Scalar(0, 0, 255);
+		}
+		
 
-		iColCursor = ClosestMatchStartCol;
-		if (iColCursor >= 0 && iColCursor < InputImageWidth)
-		{
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(iColCursor, iColCursor + 1)) = Scalar(0, 0, 255);
-		}
-		iColCursor = ClosestMatchStartCol + TemplateXTitleStartCol;
-		if (iColCursor >= 0 && iColCursor < InputImageWidth)
-		{
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(iColCursor, iColCursor + 1)) = Scalar(0, 0, 255);
-		}
-		iColCursor = ClosestMatchStartCol + TemplateXTitleEndCol;
-		if (iColCursor >= 0 && iColCursor < InputImageWidth)
-		{
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(iColCursor, iColCursor + 1)) = Scalar(0, 0, 255);
-		}
-
-		iColCursor = ClosestMatchStartCol + TemplateXWidth - 1;
-		if (iColCursor >= 0 && iColCursor < InputImageWidth)
-		{
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(iColCursor, iColCursor + 1)) = Scalar(0, 0, 255);
-		}
-
+		
 		//寻找文件路径最后一个“\”
 		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
 												   //获取文件夹路径
