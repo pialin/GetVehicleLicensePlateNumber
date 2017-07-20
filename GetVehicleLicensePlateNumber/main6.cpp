@@ -568,7 +568,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		int ResizedTemplateMatchHeightTemp = -1;
 
 		double MaxCorrCoef = 0.0;
-		double ClosestMatchScale = 0.0;
+		double DilatestMatchScale = 0.0;
 
 
 		Mat TemplateGrad = TemplateImageProjectXGrad(Range(*TemplateLineRow.begin(), *TemplateLineRow.rbegin()), Range::all());
@@ -729,7 +729,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 					if (CorrCoef > MaxCorrCoef)
 					{
 						MaxCorrCoef = CorrCoef;
-						ClosestMatchScale = CurrentMatchScale;
+						DilatestMatchScale = CurrentMatchScale;
 
 						for (int  iLineRow = 0;
 							iLineRow < ResizeShift_TemplateLineRow.size();
@@ -765,7 +765,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		double MinDutyRatio = 1.0;
 
 
-		int TemplateXWidth = int(ClosestMatchScale*InputImageHeight*TemplateImageRatio);
+		int TemplateXWidth = int(DilatestMatchScale*InputImageHeight*TemplateImageRatio);
 		Mat Binary_LineGrad;
 		Mat  Binary_ProjectY_LineGrad(
 			int(SegmentLineRow.size()),
@@ -908,7 +908,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 					*(itMinLineDutyRatio) / *(itMinLineDutyRatio - 1) >= 0.6*PlateNumberLineDutyRatio / OwnerLineDutyRatio  &&
 					*(itMinLineDutyRatio) / *(itMinLineDutyRatio - 1) < 1.4*PlateNumberLineDutyRatio / OwnerLineDutyRatio)
 				{
-					PlateNumberLineIndex = distance(LineDutyRatio.begin(), itMinLineDutyRatio) -1;
+					PlateNumberLineIndex = int(distance(LineDutyRatio.begin(), itMinLineDutyRatio) -1);
 					IsPlateNumberLineFound = true;
 
 					TitleLineIndex = PlateNumberLineIndex -1;
@@ -920,7 +920,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 		}
 
 		Mat ProjectY_PlateNumberLineGrad = Binary_ProjectY_LineGrad.row(PlateNumberLineIndex);
-		int TitleLineIndex = PlateNumberLineIndex - 1;
 
 
 		//int TemplateImageHeadBlankStartCol = 0;
@@ -932,7 +931,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//int TemplateImageTailBlanEndCol = 1042;
 
 		int TemplateImageTitleWidth  = 832 - 193 + 1;
-		int TemplateImageTitleLineHeight = TemplateImageLineGapHeight;
+		double TemplateImageTitleLineHeight = TemplateImageLineGapHeight;
 		int  TitleLineHeight = SegmentLineRow[TitleLineIndex + 1] - SegmentLineRow[TitleLineIndex] + 1;
 			//int TemplateXLeftEdgeCol = 0;
 			//int TemplateXTitleStartCol = int(double(TemplateImageTitleStartCol) /
@@ -940,11 +939,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//int TemplateXTitleEndCol = int(double(TemplateImageTitleEndCol) /
 			//	(TemplateImageWidth - 1)*(TemplateXWidth - 1));
 			//int TemplateXRightEdgeCol = TemplateXWidth;
-		int  EstimatedTitleWidth = double(TitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth);
+		int  EstimatedTitleWidth = int(double(TitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth));
 
 		Mat ProjectY_TitleLineGrad = Binary_ProjectY_LineGrad.row(TitleLineIndex);
 
-		Mat Close_ProjectY_TitleLineGrad(
+		Mat Dilate_ProjectY_TitleLineGrad(
 			1,
 			InputImageWidth,
 			CV_8UC1,
@@ -959,39 +958,41 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//TODO：从这里开始编程找到最合适的标题左右范围 方法为逐个像素长度步进先膨胀后腐蚀 找到最接近的行分割估计出的长度
 		int TitleStartCol = 0, TitleEndCol= 0;
 		int LastTitleStartCol = 0, LastTitleEndCol = 0;
-		Mat Binary_Close_TitleLineGrad = Binary_TitleLineGrad.clone();
+		Mat Binary_Dilate_TitleLineGrad = Binary_TitleLineGrad.clone();
 		if (IsTitleLineFound == true)
 		{
 			//IsTitleLineExist = false;
-			Mat CloseStructingElemnet;
+			Mat DilateStructingElement;
 			//进行形态学闭操作
 			int TitleWidthTemp = 0;
 			int TitleStartColTemp, TitleEndColTemp;
+			bool IsDilateLoopExitByBreak;
 			for (int iElementSize = 3; iElementSize < EstimatedTitleWidth / 10.0; iElementSize = iElementSize + 2)
 			{
 
 				if (((TitleEndCol - TitleStartCol + 1) - EstimatedTitleWidth)*
 					((LastTitleEndCol - LastTitleStartCol + 1) - EstimatedTitleWidth) <= 0)
 				{
+					IsDilateLoopExitByBreak = true;
 					break;
 				}
 				LastTitleStartCol = TitleStartCol;
 				LastTitleEndCol = TitleEndCol;
-				CloseStructingElemnet = getStructuringElement(MORPH_RECT, Size(iElementSize, 1));
-				morphologyEx(Binary_TitleLineGrad, Binary_Close_TitleLineGrad, MORPH_CLOSE, CloseStructingElemnet);
-
+				DilateStructingElement = getStructuringElement(MORPH_RECT, Size(iElementSize, 1));
+				morphologyEx(Binary_TitleLineGrad, Binary_Dilate_TitleLineGrad, MORPH_DILATE, DilateStructingElement);
+			
 				for (int iCol = 0; iCol < InputImageWidth; iCol++)
 				{
 					SumTemp = 0;
-					for (int iRow = 0; iRow < Binary_Close_TitleLineGrad.rows; iRow++)
+					for (int iRow = 0; iRow < Binary_Dilate_TitleLineGrad.rows; iRow++)
 					{
-						SumTemp = SumTemp + Binary_Close_TitleLineGrad.at<uchar>(iRow, iCol);
+						SumTemp = SumTemp + Binary_Dilate_TitleLineGrad.at<uchar>(iRow, iCol);
 					}
-					Close_ProjectY_TitleLineGrad.at<uchar>(0, iCol) = uchar(SumTemp / Binary_Close_TitleLineGrad.rows);
+					Dilate_ProjectY_TitleLineGrad.at<uchar>(0, iCol) = uchar(SumTemp / Binary_Dilate_TitleLineGrad.rows);
 				}
 
 				threshold(
-					Close_ProjectY_TitleLineGrad,
+					Dilate_ProjectY_TitleLineGrad,
 					ProjectY_Binary_TitleLineGrad,
 					128, //迭代初始阈值
 					255, //最大值（超过阈值将设为此值）
@@ -1012,31 +1013,56 @@ int main(int ArgumentCount, char** ArgumentVector)
 					else if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) == 0 && ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol - 1) == 255)
 					{
 						TitleEndColTemp = iCol;
-						if (TitleEndColTemp - TitleStartColTemp + 1 >= (TitleEndCol - TitleStartCol + 1))
+						if (TitleEndColTemp - TitleStartColTemp + 1 > (TitleEndCol - TitleStartCol +  iElementSize))
 						{
-							TitleStartCol = TitleStartColTemp;
-							TitleEndCol = TitleEndColTemp;
+							TitleStartCol = TitleStartColTemp + iElementSize/2;
+							TitleEndCol = TitleEndColTemp - TitleStartColTemp + 1 + TitleStartCol - iElementSize;
 						}
 					}
 				}
 
 			}
 
+			rectangle(
+				InputImageSegmentResult,
+				Point(LastTitleStartCol, SegmentLineRow[TitleLineIndex]),
+				Point(LastTitleEndCol, SegmentLineRow[TitleLineIndex+1]),
+				Scalar(0, 0, 0),
+				1,
+				LINE_AA,
+				0
+			);
 
-			//if ((LastTitleEndCol - LastTitleStartCol + 1) - (TemplateXTitleEndCol - TemplateXTitleStartCol) <
-			//	(TitleEndCol - TitleStartCol + 1) - (TemplateXTitleEndCol - TemplateXTitleStartCol))
-			//{
-			//	TitleStartCol = LastTitleStartCol;
-			//	TitleEndCol = LastTitleEndCol;
-			//}			
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(LastTitleStartCol, LastTitleStartCol + 1)) = Scalar(0, 0, 255);
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(LastTitleEndCol, LastTitleEndCol + 1)) = Scalar(0, 0, 255);
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(TitleStartCol, TitleStartCol + 1)) = Scalar(0, 0, 0);
-			InputImageSegmentResult(Range(SegmentLineRow[TitleLineIndex], SegmentLineRow[TitleLineIndex + 1]),
-				Range(TitleEndCol, TitleEndCol + 1)) = Scalar(0, 0, 0);
+			rectangle(
+				InputImageSegmentResult,
+				Point(TitleStartCol, SegmentLineRow[TitleLineIndex]),
+				Point(TitleEndCol, SegmentLineRow[TitleLineIndex + 1]),
+				Scalar(0, 0, 0),
+				1,
+				LINE_AA,
+				0
+			);
+
+
+			if (IsDilateLoopExitByBreak == true)
+			{
+				if (abs(TitleEndCol - TitleStartCol + 1 - EstimatedTitleWidth) >
+					abs(LastTitleEndCol - LastTitleStartCol + 1 - EstimatedTitleWidth))
+				{
+					TitleStartCol = LastTitleStartCol;
+					TitleEndCol = LastTitleEndCol;
+				}
+			}
+
+			rectangle(
+				InputImageSegmentResult,
+				Point(TitleStartCol, SegmentLineRow[TitleLineIndex]),
+				Point(TitleEndCol, SegmentLineRow[TitleLineIndex + 1]),
+				Scalar(0, 0, 255),
+				1,
+				LINE_AA,
+				0
+			);
 
 			int TemplateImageTitleStartCol = 193;
 			int TemplateImageTitleEndCol = 832;
@@ -1045,16 +1071,16 @@ int main(int ArgumentCount, char** ArgumentVector)
 			int TemplateImagePlateNumberAreaCenterCol = TemplateImagePlateNumberAreaRect.x + TemplateImagePlateNumberAreaRect.width / 2;
 			
 			Rect InputImagePlateNumberAreaRect;
-			int LicenseWidth = int(double(LastTitleEndCol - LastTitleStartCol + 1) /
+			int LicenseWidth = int(double(TitleEndCol - TitleStartCol + 1) /
 				double(TemplateImageTitleEndCol - TemplateImageTitleStartCol + 1)*TemplateImageWidth);
 			double InputImageHorizonScale = double(LicenseWidth) / double(InputImageWidth);
 			if (InputImageHorizonScale >= MinMatchScale &&
 				InputImageHorizonScale < MaxMatchScale)
 			{
 				InputImagePlateNumberAreaRect.y = SegmentLineRow[PlateNumberLineIndex];
-				InputImagePlateNumberAreaRect.x = int((LastTitleStartCol + LastTitleEndCol)/2.0 - (TemplateImageTitleCenterCol - TemplateImagePlateNumberAreaCenterCol)/double(TemplateImageWidth)
+				InputImagePlateNumberAreaRect.x = int((TitleStartCol + TitleEndCol)/2.0 - (TemplateImageTitleCenterCol - TemplateImagePlateNumberAreaCenterCol)/double(TemplateImageWidth)
 					*InputImageWidth*InputImageHorizonScale  - double(TemplateImagePlateNumberAreaRect.width) / double(TemplateImageWidth)*InputImageWidth*InputImageHorizonScale/2.0);
-				InputImagePlateNumberAreaRect.height = int(double(TemplateImagePlateNumberAreaRect.height) / double(TemplateImageHeight)*InputImageHeight*ClosestMatchScale);
+				InputImagePlateNumberAreaRect.height = int(double(TemplateImagePlateNumberAreaRect.height) / double(TemplateImageHeight)*InputImageHeight*DilatestMatchScale);
 				InputImagePlateNumberAreaRect.width = int(double(TemplateImagePlateNumberAreaRect.width) / double(TemplateImageWidth)*InputImageWidth*InputImageHorizonScale);
 			}
 
@@ -1079,8 +1105,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 				CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 			);
 
-			Mat  Binary_Close_PlateNumberAreaGrad;
-			Mat Close_ProjectX_PlateNumberAreaGrad
+			Mat  Binary_Dilate_PlateNumberAreaGrad;
+			Mat Dilate_ProjectX_PlateNumberAreaGrad
 			(
 				Binary_PlateNumberAreaGrad.cols,
 				1,
@@ -1105,28 +1131,28 @@ int main(int ArgumentCount, char** ArgumentVector)
 				}
 				LastPlateNumberStartRow = PlateNumberStartRow;
 				LastPlateNumberEndRow = PlateNumberEndRow;
-				CloseStructingElemnet = getStructuringElement(MORPH_RECT, Size( 1,iElementSize));
-				morphologyEx(Binary_PlateNumberAreaGrad, Binary_Close_PlateNumberAreaGrad, MORPH_CLOSE, CloseStructingElemnet);
-				for (int iRow = 0; iRow < Binary_Close_PlateNumberAreaGrad.rows; iRow++)
+				DilateStructingElement = getStructuringElement(MORPH_RECT, Size( 1,iElementSize));
+				morphologyEx(Binary_PlateNumberAreaGrad, Binary_Dilate_PlateNumberAreaGrad, MORPH_DILATE, DilateStructingElement);
+				for (int iRow = 0; iRow < Binary_Dilate_PlateNumberAreaGrad.rows; iRow++)
 				{
 
 					SumTemp = 0;
-					for (int iCol = 0; iCol < Binary_Close_PlateNumberAreaGrad.cols; iCol++)
+					for (int iCol = 0; iCol < Binary_Dilate_PlateNumberAreaGrad.cols; iCol++)
 					{
-						SumTemp = SumTemp + Binary_Close_PlateNumberAreaGrad.at<uchar>(iRow, iCol);
+						SumTemp = SumTemp + Binary_Dilate_PlateNumberAreaGrad.at<uchar>(iRow, iCol);
 					}
-					Close_ProjectX_PlateNumberAreaGrad.at<uchar>(iRow,0) = uchar(SumTemp / Binary_Close_TitleLineGrad.cols);
+					Dilate_ProjectX_PlateNumberAreaGrad.at<uchar>(iRow,0) = uchar(SumTemp / Binary_Dilate_TitleLineGrad.cols);
 				}
 
 				threshold(
-					Close_ProjectX_PlateNumberAreaGrad,
+					Dilate_ProjectX_PlateNumberAreaGrad,
 					ProjectX_Binary_PlateNumberAreaGrad,
 					128, //迭代初始阈值
 					255, //最大值（超过阈值将设为此值）
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 				);
 
-				if (Close_ProjectX_PlateNumberAreaGrad.at<uchar>(0, 0) = 255)
+				if (Dilate_ProjectX_PlateNumberAreaGrad.at<uchar>(0, 0) = 255)
 				{
 					PlateNumberStartRowTemp = 0;
 				}
@@ -1186,7 +1212,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 			InputImage_PlateNumberAreaGrad = InputImage_Grad(InputImagePlateNumberAreaRect);
 
-			Mat Binary_PlateNumberAreaGrad;
 			threshold(
 				InputImage_PlateNumberAreaGrad,
 				Binary_PlateNumberAreaGrad,
@@ -1194,8 +1219,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 				255, //最大值（超过阈值将设为此值）
 				CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 			);
-			Mat Binary_Close_PlateNumberAreaGrad;
-			Mat Close_ProjectY_PlateNumberAreaGrad(
+
+			Mat Dilate_ProjectY_PlateNumberAreaGrad(
 				1,
 				InputImageWidth,
 				CV_8UC1,
@@ -1226,28 +1251,28 @@ int main(int ArgumentCount, char** ArgumentVector)
 				}
 				LastTitleStartCol = TitleStartCol;
 				LastTitleEndCol = TitleEndCol;
-				CloseStructingElemnet = getStructuringElement(MORPH_RECT, Size(iElementSize, 1));
-				morphologyEx(Binary_PlateNumberAreaGrad, Binary_Close_PlateNumberAreaGrad, MORPH_CLOSE, CloseStructingElemnet);
+				DilateStructingElement = getStructuringElement(MORPH_RECT, Size(iElementSize, 1));
+				morphologyEx(Binary_PlateNumberAreaGrad, Binary_Dilate_PlateNumberAreaGrad, MORPH_DILATE, DilateStructingElement);
 
 				for (int iCol = 0; iCol < InputImageWidth; iCol++)
 				{
 					SumTemp = 0;
-					for (int iRow = 0; iRow < Binary_Close_PlateNumberAreaGrad.rows; iRow++)
+					for (int iRow = 0; iRow < Binary_Dilate_PlateNumberAreaGrad.rows; iRow++)
 					{
-						SumTemp = SumTemp + Binary_Close_PlateNumberAreaGrad.at<uchar>(iRow, iCol);
+						SumTemp = SumTemp + Binary_Dilate_PlateNumberAreaGrad.at<uchar>(iRow, iCol);
 					}
-					Close_ProjectY_PlateNumberAreaGrad.at<uchar>(0, iCol) = uchar(SumTemp / Binary_Close_TitleLineGrad.rows);
+					Dilate_ProjectY_PlateNumberAreaGrad.at<uchar>(0, iCol) = uchar(SumTemp / Binary_Dilate_TitleLineGrad.rows);
 				}
 
 				threshold(
-					Close_ProjectY_PlateNumberAreaGrad,
+					Dilate_ProjectY_PlateNumberAreaGrad,
 					ProjectY_Binary_PlateNumberAreaGrad,
 					128, //迭代初始阈值
 					255, //最大值（超过阈值将设为此值）
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 				);
 
-				if (Close_ProjectY_PlateNumberAreaGrad.at<uchar>(0, 0) = 255)
+				if (Dilate_ProjectY_PlateNumberAreaGrad.at<uchar>(0, 0) = 255)
 				{
 					PlateNumberStartColTemp = 0;
 				}
@@ -1285,41 +1310,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 			);
 
 
-
-
-
-			Mat ProjectX_Binary_PlateNumberAreaGrad;
-			threshold(
-				ProjectX_PlateNumberAreaGrad,
-				ProjectX_Binary_PlateNumberAreaGrad,
-				128, //迭代初始阈值
-				255, //最大值（超过阈值将设为此值）
-				CV_THRESH_OTSU //阈值化选择的方法:Otsu法
-			);
-
-			LicenseWidth = int(double(TitleEndCol - TitleStartCol + 1) /
-				double(TemplateImageTitleEndCol - TemplateImageTitleStartCol + 1)*TemplateImageWidth);
-			InputImageHorizonScale = double(LicenseWidth) / double(InputImageWidth);
-			if (InputImageHorizonScale >= MinMatchScale &&
-				InputImageHorizonScale < MaxMatchScale)
-			{
-				InputImagePlateNumberAreaRect.y = PlateNumberLineStartRow;
-				InputImagePlateNumberAreaRect.x = int((TitleStartCol + TitleEndCol) / 2.0 - (TemplateImageTitleCenterCol - TemplateImagePlateNumberAreaCenterCol) / double(TemplateImageWidth)
-					*InputImageWidth*InputImageHorizonScale - double(TemplateImagePlateNumberAreaRect.width) / double(TemplateImageWidth)*InputImageWidth*InputImageHorizonScale/2.0);
-				InputImagePlateNumberAreaRect.height = int(double(TemplateImagePlateNumberAreaRect.height) / double(TemplateImageHeight)*InputImageHeight*ClosestMatchScale);
-				InputImagePlateNumberAreaRect.width = int(double(TemplateImagePlateNumberAreaRect.width) / double(TemplateImageWidth)*InputImageWidth*InputImageHorizonScale);
-			}
-
-			rectangle(
-				InputImageSegmentResult,
-				Point(InputImagePlateNumberAreaRect.x, InputImagePlateNumberAreaRect.y),
-				Point(InputImagePlateNumberAreaRect.x + InputImagePlateNumberAreaRect.width ,
-					InputImagePlateNumberAreaRect.y + InputImagePlateNumberAreaRect.height),
-				Scalar(0, 0, 0),
-				1,
-				LINE_AA,
-				0
-			);
 
 		}
 
