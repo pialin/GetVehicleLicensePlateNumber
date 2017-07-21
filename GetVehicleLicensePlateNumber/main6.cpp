@@ -971,7 +971,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		{
 			//IsTitleLineExist = false;
 			Mat DilateStructingElement;
-			//进行形态学闭操作
+			//进行形态学膨胀操作
 			int TitleWidthTemp = 0;
 			int TitleStartColTemp, TitleEndColTemp;
 			bool IsDilateLoopExitByBreak;
