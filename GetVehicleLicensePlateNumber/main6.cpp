@@ -30,7 +30,7 @@ using namespace cv;
 double WindowHeight = 700.0;
 
 double MinMatchScale = 0.6;
-double MaxMatchScale = 1.2;
+double MaxMatchScale = 1.4;
 
 template <typename SortValueType>
 vector<int>  SortIndex(vector<SortValueType> &InputValueVector) {
@@ -241,13 +241,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 	vector<int> TemplateLineRow = { 40,107,190,269,356,439,522,605,683 };
 	int TemplateMatchHeight = *TemplateLineRow.rbegin() - *TemplateLineRow.begin();
 	const double TemplateImageLineGapHeight = 83;
-	int TemplateImagePlateNumberLineHeight = 83;
+	const double TemplateImagePlateNumberLineHeight = TemplateImageLineGapHeight;
+	Rect TemplateImagePlateNumberAreaRect = Rect(159, 106, 454 - 159, 228 - 106);
+	int TemplateImagePlateNumberWidth = 175;
 	int TemplateImagePlateNumberHeight = 39;
 	int TemplateImageTitleStartCol = 193;
 	int TemplateImageTitleEndCol = 833;
 	int TemplateImageTitleWidth = TemplateImageTitleEndCol - TemplateImageTitleStartCol;
-	Rect TemplateImagePlateNumberAreaRect = Rect(159, 106, 454 - 159, 228 - 106);
-	int TemplateImagePlateNumberWidth = 175;
+	int TemplateImageTitleLineHeight = TemplateLineRow[1] - TemplateLineRow[0];
+
 	////////////////////////////////////////////////////////////////
 
 	//创建用于存储图片路径的String数组
@@ -265,7 +267,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 	int InputImageWidth;
 
 	//对符合的图片进行遍历
-	for (vector<String>::iterator itInputXmlPath = XmlPathList.begin()+6;
+	for (vector<String>::iterator itInputXmlPath = XmlPathList.begin();
 		itInputXmlPath < XmlPathList.end();
 		itInputXmlPath++)
 	{
@@ -302,10 +304,10 @@ int main(int ArgumentCount, char** ArgumentVector)
 					{
 						tinyxml2::XMLElement *LabelRectElement = LabelElement->FirstChildElement("bndbox");
 
-						DetectAreaRect.x = atoi(LabelRectElement->FirstChildElement("xmin")->GetText());
-						DetectAreaRect.y = atoi(LabelRectElement->FirstChildElement("ymin")->GetText());
-						DetectAreaRect.width = atoi(LabelRectElement->FirstChildElement("xmax")->GetText()) - DetectAreaRect.x;
-						DetectAreaRect.height = atoi(LabelRectElement->FirstChildElement("ymax")->GetText()) - DetectAreaRect.y;
+						DetectAreaRect.x = atoi(LabelRectElement->FirstChildElement("xmin")->GetText()) - 1;
+						DetectAreaRect.y = atoi(LabelRectElement->FirstChildElement("ymin")->GetText()) - 1;
+						DetectAreaRect.width = atoi(LabelRectElement->FirstChildElement("xmax")->GetText()) - 1 - DetectAreaRect.x;
+						DetectAreaRect.height = atoi(LabelRectElement->FirstChildElement("ymax")->GetText()) - 1 - DetectAreaRect.y;
 						IsDetectAreaRectFound = true;
 						break;
 					}
@@ -349,8 +351,21 @@ int main(int ArgumentCount, char** ArgumentVector)
 			continue;
 		}
 
-		InputImage = InputImageAll(DetectAreaRect);
-
+		if (DetectAreaRect.x >= 0 && DetectAreaRect.x < InputImageAll.cols &&
+			DetectAreaRect.y >= 0 && DetectAreaRect.x < InputImageAll.rows &&
+			DetectAreaRect.x + DetectAreaRect.width >= 0 && DetectAreaRect.x + DetectAreaRect.width < InputImageAll.cols &&
+			DetectAreaRect.y + DetectAreaRect.height >= 0 && DetectAreaRect.y + DetectAreaRect.height < InputImageAll.rows)
+		{
+			InputImage = InputImageAll(DetectAreaRect);
+		}
+		else
+		{
+			//显示图片读取失败提示信息
+			cout << " Error:  Unmatched DetectAreaRect with size of image:'" << InputImagePath <<
+				"'. This item would be skipped." << endl;
+			//返回错误码并跳过此图片
+			continue;
+		}
 		InputImageHeight = InputImage.rows;
 		InputImageWidth = InputImage.cols;
 
@@ -796,9 +811,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 		for (int iLine = 0; iLine < SegmentLineRow.size() - 1; iLine++)
 		{
-			 if (SegmentLineRow[iLine] < 0)
+			if (SegmentLineRow[iLine] < 0)
 			{
-				 SegmentLineRow[iLine] = 0;
+				SegmentLineRow[iLine] = 0;
 			}
 			else if (SegmentLineRow[iLine] >= InputImageHeight)
 			{
@@ -814,8 +829,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 				SegmentLineRow[iLine + 1] = InputImageHeight - 1;
 			}
 
-		
-			if (SegmentLineRow[iLine]<SegmentLineRow[iLine + 1])
+
+			if (SegmentLineRow[iLine] < SegmentLineRow[iLine + 1])
 			{
 				threshold(
 					InputImage_Grad(Range(SegmentLineRow[iLine], SegmentLineRow[iLine + 1]), Range::all()),
@@ -867,7 +882,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 					iCol++)
 				{
 
-					SumTemp = SumTemp + ProjectY_Binary_LineGrad.row(iLine).at<uchar>(0, iCol)/255.0;
+					SumTemp = SumTemp + ProjectY_Binary_LineGrad.row(iLine).at<uchar>(0, iCol) / 255.0;
 				}
 				LineDutyRatio.push_back(SumTemp / TemplateXWidth);
 				//if (LineDutyRatio.back()< MinDutyRatio)
@@ -888,8 +903,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 		double TitleLineDutyRatio = 0.458213270;
 		double PlateNumberLineDutyRatio = 0.412103742;
 		double OwnerLineDutyRatio = 0.139289141;
-		vector<double>::iterator itMinLineDutyRatio = min_element(LineDutyRatio.begin(),LineDutyRatio.end());
-		if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) >2)
+		vector<double>::iterator itMinLineDutyRatio = min_element(LineDutyRatio.begin(), LineDutyRatio.end());
+		if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) > 2)
 		{
 			if (*(itMinLineDutyRatio - 2) / *(itMinLineDutyRatio - 1) >= 0.6*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
 				*(itMinLineDutyRatio - 2) / *(itMinLineDutyRatio - 1) < 1.4*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
@@ -904,82 +919,82 @@ int main(int ArgumentCount, char** ArgumentVector)
 			}
 
 		}
-		else if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) ==0)
+		else if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) == 0)
 		{
 			LineDutyRatio.erase(itMinLineDutyRatio);
 			itMinLineDutyRatio = min_element(LineDutyRatio.begin(), LineDutyRatio.end());
-			if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) >=2)
+			if (distance(LineDutyRatio.begin(), itMinLineDutyRatio) >= 2)
 			{
 				if (*(itMinLineDutyRatio - 2) / *(itMinLineDutyRatio - 1) >= 0.6*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
 					*(itMinLineDutyRatio - 2) / *(itMinLineDutyRatio - 1) < 1.4*TitleLineDutyRatio / PlateNumberLineDutyRatio  &&
 					*(itMinLineDutyRatio) / *(itMinLineDutyRatio - 1) >= 0.6*PlateNumberLineDutyRatio / OwnerLineDutyRatio  &&
 					*(itMinLineDutyRatio) / *(itMinLineDutyRatio - 1) < 1.4*PlateNumberLineDutyRatio / OwnerLineDutyRatio)
 				{
-					PlateNumberLineIndex = int(distance(LineDutyRatio.begin(), itMinLineDutyRatio) -1);
+					PlateNumberLineIndex = int(distance(LineDutyRatio.begin(), itMinLineDutyRatio) - 1);
 					IsPlateNumberLineFound = true;
 
-					TitleLineIndex = PlateNumberLineIndex -1;
+					TitleLineIndex = PlateNumberLineIndex - 1;
 					IsTitleLineFound = true;
-					
+
 				}
 
 			}
 		}
 
-		Mat ProjectY_PlateNumberLineGrad = Binary_ProjectY_LineGrad.row(PlateNumberLineIndex);
+		if (IsTitleLineFound == true && IsPlateNumberLineFound == true)
+		{
+			Mat ProjectY_PlateNumberLineGrad = Binary_ProjectY_LineGrad.row(PlateNumberLineIndex);
 
 
-		//int TemplateImageHeadBlankStartCol = 0;
-		//int TemplateImagePlateNumberAnnotationStartCol = 37;
-		//int TemplateImagePlateNumberBlankStartCol = 159;
-		//int TemplateImageVehicleTypeAnnotationStartCol = 452;
-		//int TemplateImageVehicleTypeBlankStartCol = 575;
-		//int TemplateImageTailBlanStartCol = 1003;
-		//int TemplateImageTailBlanEndCol = 1042;
+			//int TemplateImageHeadBlankStartCol = 0;
+			//int TemplateImagePlateNumberAnnotationStartCol = 37;
+			//int TemplateImagePlateNumberBlankStartCol = 159;
+			//int TemplateImageVehicleTypeAnnotationStartCol = 452;
+			//int TemplateImageVehicleTypeBlankStartCol = 575;
+			//int TemplateImageTailBlanStartCol = 1003;
+			//int TemplateImageTailBlanEndCol = 1042;
 
-		
-		double TemplateImageTitleLineHeight = TemplateImageLineGapHeight;
-		int  TitleLineHeight = SegmentLineRow[TitleLineIndex + 1] - SegmentLineRow[TitleLineIndex] + 1;
+
+			double  TitleLineHeight = (TemplateLineRow[1] - TemplateLineRow[0]) * ClosestMatchScale;
 			//int TemplateXLeftEdgeCol = 0;
 			//int TemplateXTitleStartCol = int(double(TemplateImageTitleStartCol) /
 			//	(TemplateImageWidth - 1)*(TemplateXWidth - 1));
 			//int TemplateXTitleEndCol = int(double(TemplateImageTitleEndCol) /
 			//	(TemplateImageWidth - 1)*(TemplateXWidth - 1));
 			//int TemplateXRightEdgeCol = TemplateXWidth;
-		double  EstimatedTitleWidth = double(TitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth);
-		double EstimatedTitleCharWidth = EstimatedTitleWidth/13.0;
+			double  EstimateTitleWidth = double(TitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth);
+			double EstimateTitleCharWidth = EstimateTitleWidth / 13.0;
 
-		Mat ProjectY_TitleLineGrad = Binary_ProjectY_LineGrad.row(TitleLineIndex);
+			Mat ProjectY_TitleLineGrad = Binary_ProjectY_LineGrad.row(TitleLineIndex);
 
-		Mat Dilate_ProjectY_TitleLineGrad(
-			1,
-			InputImageWidth,
-			CV_8UC1,
-			Scalar(0)
-		);
-		Mat ProjectY_Binary_TitleLineGrad(
-			1,
-			InputImageWidth,
-			CV_8UC1,
-			Scalar(0)
+			Mat Dilate_ProjectY_TitleLineGrad(
+				1,
+				InputImageWidth,
+				CV_8UC1,
+				Scalar(0)
 			);
-		//TODO：从这里开始编程找到最合适的标题左右范围 方法为逐个像素长度步进先膨胀后腐蚀 找到最接近的行分割估计出的长度
-		int TitleStartCol = 0, TitleEndCol= 0;
-		int LastTitleStartCol = 0, LastTitleEndCol = 0;
-		Mat Binary_Dilate_TitleLineGrad = Binary_TitleLineGrad.clone();
-		if (IsTitleLineFound == true)
-		{
+			Mat ProjectY_Binary_TitleLineGrad(
+				1,
+				InputImageWidth,
+				CV_8UC1,
+				Scalar(0)
+			);
+			//TODO：从这里开始编程找到最合适的标题左右范围 方法为逐个像素长度步进先膨胀后腐蚀 找到最接近的行分割估计出的长度
+			int TitleStartCol = 0, TitleEndCol = 0;
+			int LastTitleStartCol = 0, LastTitleEndCol = 0;
+			Mat Binary_Dilate_TitleLineGrad = Binary_TitleLineGrad.clone();
+
 			//IsTitleLineExist = false;
 			Mat DilateStructingElement;
 			//进行形态学膨胀操作
 			int TitleWidthTemp = 0;
 			int TitleStartColTemp, TitleEndColTemp;
 			bool IsDilateLoopExitByBreak;
-			for (int iElementSize = 3; iElementSize < EstimatedTitleWidth /5.0; iElementSize = iElementSize + 2)
+			for (int iElementSize = 3; iElementSize < EstimateTitleCharWidth * 2; iElementSize = iElementSize + 2)
 			{
 
-				if (((TitleEndCol - TitleStartCol + 1) - EstimatedTitleWidth)*
-					((LastTitleEndCol - LastTitleStartCol + 1) - EstimatedTitleWidth) <= 0)
+				if (((TitleEndCol - TitleStartCol) - EstimateTitleWidth)*
+					((LastTitleEndCol - LastTitleStartCol) - EstimateTitleWidth) <= 0)
 				{
 					IsDilateLoopExitByBreak = true;
 					break;
@@ -1007,10 +1022,6 @@ int main(int ArgumentCount, char** ArgumentVector)
 					CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 				);
 
-				for (int iCol; iCol < ProjectY_Binary_TitleLineGrad.cols;iCol++)
-				{
-					if 
-				}
 
 
 				if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, 0) = 255)
@@ -1026,6 +1037,29 @@ int main(int ArgumentCount, char** ArgumentVector)
 					}
 					else if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) == 0 && ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol - 1) == 255)
 					{
+						double LeftSumTemp = 0.0;
+						for (int jCol = int(iCol - EstimateTitleCharWidth >= 0 ? iCol - EstimateTitleCharWidth : 0);
+							jCol < iCol;
+							jCol++)
+						{
+							LeftSumTemp = LeftSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
+						}
+						if (LeftSumTemp >= 0.75 * 255.0 *EstimateTitleCharWidth)
+						{
+							double RightSumTemp = 0.0;
+							for (int jCol = iCol;
+								jCol < int(iCol + EstimateTitleCharWidth < ProjectY_Binary_TitleLineGrad.cols ? iCol + EstimateTitleCharWidth : ProjectY_Binary_TitleLineGrad.cols);
+								jCol++)
+							{
+								RightSumTemp = RightSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
+							}
+
+							if (RightSumTemp >= 0.75 * 255.0 * EstimateTitleCharWidth)
+							{
+								ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) = 255;
+								continue;
+							}
+						}
 						TitleEndColTemp = iCol;
 						if (TitleEndColTemp - TitleStartColTemp > (TitleEndCol - TitleStartCol + iElementSize - 1))
 						{
@@ -1037,7 +1071,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 			}
 
- 			rectangle(
+			rectangle(
 				InputImageSegmentResult,
 				Point(LastTitleStartCol, SegmentLineRow[TitleLineIndex]),
 				Point(LastTitleEndCol, SegmentLineRow[TitleLineIndex + 1]),
@@ -1046,6 +1080,23 @@ int main(int ArgumentCount, char** ArgumentVector)
 				LINE_AA,
 				0
 			);
+
+			rectangle(
+				InputImageSegmentResult,
+				Point(TitleStartCol, SegmentLineRow[TitleLineIndex]),
+				Point(TitleEndCol, SegmentLineRow[TitleLineIndex + 1]),
+				Scalar(0, 0, 0),
+				1,
+				LINE_AA,
+				0
+			);
+			if (abs(TitleEndCol - TitleStartCol - EstimateTitleWidth) >
+				abs(LastTitleEndCol - LastTitleStartCol - EstimateTitleWidth))
+			{
+				TitleStartCol = LastTitleStartCol;
+				TitleEndCol = LastTitleEndCol;
+			}
+
 
 			rectangle(
 				InputImageSegmentResult,
@@ -1171,6 +1222,30 @@ int main(int ArgumentCount, char** ArgumentVector)
 						}
 					}
 				}
+				Rect PlateNumberRect = InputImagePlateNumberAreaRect;
+				PlateNumberRect.y = InputImagePlateNumberAreaRect.y + PlateNumberStartRow;
+				PlateNumberRect.height = PlateNumberEndRow - PlateNumberStartRow;
+				rectangle(
+					InputImageSegmentResult,
+					PlateNumberRect.tl(),
+					PlateNumberRect.br(),
+					Scalar(0, 0, 0),
+					1,
+					LINE_AA,
+					0
+				);
+				PlateNumberRect = InputImagePlateNumberAreaRect;
+				PlateNumberRect.y = InputImagePlateNumberAreaRect.y + LastPlateNumberStartRow;
+				PlateNumberRect.height = LastPlateNumberEndRow - LastPlateNumberStartRow;
+				rectangle(
+					InputImageSegmentResult,
+					PlateNumberRect.tl(),
+					PlateNumberRect.br(),
+					Scalar(0, 0, 0),
+					1,
+					LINE_AA,
+					0
+				);
 				if (abs(PlateNumberEndRow - PlateNumberStartRow - EstimatePlateNumberHeight) >
 					abs(LastPlateNumberEndRow - LastPlateNumberStartRow - EstimatePlateNumberHeight))
 				{
@@ -1260,7 +1335,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 						else if (ProjectY_Binary_PlateNumberAreaGrad.at<uchar>(0, iCol) == 0 && ProjectY_Binary_PlateNumberAreaGrad.at<uchar>(0, iCol - 1) == 255)
 						{
 							PlateNumberEndColTemp = iCol;
-							if (PlateNumberEndColTemp - PlateNumberStartColTemp >(PlateNumberEndCol - PlateNumberStartCol + iElementSize - 1))
+							if (PlateNumberEndColTemp - PlateNumberStartColTemp > (PlateNumberEndCol - PlateNumberStartCol + iElementSize - 1))
 							{
 								PlateNumberStartCol = PlateNumberStartColTemp + iElementSize / 2;
 								PlateNumberEndCol = PlateNumberEndColTemp - (iElementSize - 1 - iElementSize / 2);
@@ -1269,11 +1344,52 @@ int main(int ArgumentCount, char** ArgumentVector)
 					}
 				}
 
+				PlateNumberRect = InputImagePlateNumberAreaRect;
+				PlateNumberRect.x = InputImagePlateNumberAreaRect.x + PlateNumberStartCol;
+				PlateNumberRect.width = PlateNumberEndCol - PlateNumberStartCol;
+
+				rectangle(
+					InputImageSegmentResult,
+					PlateNumberRect.tl(),
+					PlateNumberRect.br(),
+					Scalar(0, 0, 0),
+					1,
+					LINE_AA,
+					0
+				);
+				PlateNumberRect = InputImagePlateNumberAreaRect;
+				PlateNumberRect.x = InputImagePlateNumberAreaRect.x + LastPlateNumberStartCol;
+				PlateNumberRect.width = LastPlateNumberEndCol - LastPlateNumberStartCol;
+				rectangle(
+					InputImageSegmentResult,
+					PlateNumberRect.tl(),
+					PlateNumberRect.br(),
+					Scalar(0, 0, 0),
+					1,
+					LINE_AA,
+					0
+				);
 				if (abs(PlateNumberEndCol - PlateNumberStartCol - EstimatePlateNumberWidth) >
 					abs(LastPlateNumberEndCol - LastPlateNumberStartCol - EstimatePlateNumberWidth))
 				{
-					PlateNumberStartRow = LastPlateNumberStartRow;
-					PlateNumberEndRow = LastPlateNumberEndRow;
+					PlateNumberStartCol = LastPlateNumberStartCol;
+					PlateNumberEndCol = LastPlateNumberEndCol;
+				}
+
+				if (abs(PlateNumberEndCol - PlateNumberStartCol) / EstimatePlateNumberWidth <= 0.8)
+				{
+					if ((PlateNumberStartCol + PlateNumberEndCol) / 2.0 <
+						InputImagePlateNumberAreaRect.x + InputImagePlateNumberAreaRect.width / 2.0)
+					{
+						PlateNumberStartCol = int(PlateNumberEndCol - EstimatePlateNumberWidth >= 0 ?
+							PlateNumberEndCol - EstimatePlateNumberWidth : 0);
+					}
+					else
+					{
+						PlateNumberEndCol = int(PlateNumberStartCol + EstimatePlateNumberWidth < InputImageWidth ?
+							PlateNumberStartCol + EstimatePlateNumberWidth : InputImageWidth);
+					}
+
 				}
 
 				InputImagePlateNumberAreaRect.x = InputImagePlateNumberAreaRect.x + PlateNumberStartCol;
@@ -1289,10 +1405,15 @@ int main(int ArgumentCount, char** ArgumentVector)
 				);
 
 			}
+
 		}
-			////////////////////////////////////////////////////////////////////////////////////////////////
-	
-		//寻找文件路径最后一个“\”
+		else if (IsTitleLineFound == false && IsPlateNumberLineFound == true)
+		{
+
+		}
+		////////////////////////////////////////////////////////////////////////////////////////////////
+
+	//寻找文件路径最后一个“\”
 		size_t SepPos = InputImagePath.rfind('\\');//rfind 反向查找
 												   //获取文件夹路径
 		string FolderPath = InputImagePath.substr(0, SepPos);
