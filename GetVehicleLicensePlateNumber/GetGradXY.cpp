@@ -1,8 +1,8 @@
 #include "main.h"
 
-int GetGradXY(Mat& SourceMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
+int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 {
-	if (SourceMat.type() != CV_8UC1 || SourceMat.channels() != 1)
+	if (InputMat.type() != CV_8UC1 || InputMat.channels() != 1)
 	{
 		ofstream LogStream(LogFilePath, ios::app);
 		time_t CurrentTime;
@@ -14,14 +14,14 @@ int GetGradXY(Mat& SourceMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 		return 1;
 	}
 	OutputGradXMat = Mat::zeros(
-		int(SourceMat.rows),
-		int(SourceMat.cols),
+		int(InputMat.rows),
+		int(InputMat.cols),
 		CV_32FC1
 	);
 
 	OutputGradXMat = Mat::zeros(
-		int(SourceMat.rows),
-		int(SourceMat.cols),
+		int(InputMat.rows),
+		int(InputMat.cols),
 		CV_32FC1
 	);
 
@@ -30,16 +30,16 @@ int GetGradXY(Mat& SourceMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 	uchar * GradYCurrentRowHeadPtr = 0, *GradXCurrentRowHeadPtr = 0;
 
 	//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
-	for (int iRow = 1; iRow < SourceMat.rows - 1; iRow++)
+	for (int iRow = 1; iRow < InputMat.rows - 1; iRow++)
 	{
-		SourceCurrentRowHeadPtr = SourceMat.ptr<uchar>(iRow);
-		SourcePreviousRowHeadPtr = SourceMat.ptr<uchar>(iRow - 1);
-		SourceNextRowHeadPtr = SourceMat.ptr<uchar>(iRow + 1);
+		SourceCurrentRowHeadPtr = InputMat.ptr<uchar>(iRow);
+		SourcePreviousRowHeadPtr = InputMat.ptr<uchar>(iRow - 1);
+		SourceNextRowHeadPtr = InputMat.ptr<uchar>(iRow + 1);
 
 		GradXCurrentRowHeadPtr = OutputGradXMat.ptr<uchar>(iRow);
 		GradYCurrentRowHeadPtr = OutputGradYMat.ptr<uchar>(iRow);
 
-		for (int iCol = 1; iCol < SourceMat.cols - 1; iCol++)
+		for (int iCol = 1; iCol < InputMat.cols - 1; iCol++)
 		{
 			GradYCurrentRowHeadPtr[iCol] = abs(
 				10 * (SourceNextRowHeadPtr[iCol] - SourcePreviousRowHeadPtr[iCol]) +
