@@ -25,32 +25,24 @@ int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 		CV_32FC1
 	);
 
-	uchar * SourceCurrentRowHeadPtr = 0, *SourcePreviousRowHeadPtr = 0, *SourceNextRowHeadPtr = 0;
-
-	uchar * GradYCurrentRowHeadPtr = 0, *GradXCurrentRowHeadPtr = 0;
 
 	//逐个像素计算垂直梯度，上下左右边缘不作计算，其值为填充的初始值0
 	for (int iRow = 1; iRow < InputMat.rows - 1; iRow++)
 	{
-		SourceCurrentRowHeadPtr = InputMat.ptr<uchar>(iRow);
-		SourcePreviousRowHeadPtr = InputMat.ptr<uchar>(iRow - 1);
-		SourceNextRowHeadPtr = InputMat.ptr<uchar>(iRow + 1);
-
-		GradXCurrentRowHeadPtr = OutputGradXMat.ptr<uchar>(iRow);
-		GradYCurrentRowHeadPtr = OutputGradYMat.ptr<uchar>(iRow);
 
 		for (int iCol = 1; iCol < InputMat.cols - 1; iCol++)
 		{
-			GradYCurrentRowHeadPtr[iCol] = abs(
-				10 * (SourceNextRowHeadPtr[iCol] - SourcePreviousRowHeadPtr[iCol]) +
-				3 * (SourceNextRowHeadPtr[iCol - 1] - SourcePreviousRowHeadPtr[iCol - 1]) +
-				3 * (SourceNextRowHeadPtr[iCol + 1] - SourcePreviousRowHeadPtr[iCol + 1])
+			OutputGradXMat.ptr<uchar>(iRow)[iCol] = abs(
+				10 * (InputMat.ptr<uchar>(iRow)[iCol + 1] - InputMat.ptr<uchar>(iRow)[iCol - 1]) +
+				3 * (InputMat.ptr<uchar>(iRow-1)[iCol + 1] - InputMat.ptr<uchar>(iRow-1)[iCol - 1]) +
+				3 * (InputMat.ptr<uchar>(iRow+1)[iCol + 1] - InputMat.ptr<uchar>(iRow+1)[iCol - 1])
 			);
-			GradXCurrentRowHeadPtr[iCol] = abs(
-				10 * (SourceCurrentRowHeadPtr[iCol + 1] - SourceCurrentRowHeadPtr[iCol - 1]) +
-				3 * (SourcePreviousRowHeadPtr[iCol + 1] - SourcePreviousRowHeadPtr[iCol - 1]) +
-				3 * (SourceNextRowHeadPtr[iCol + 1] - SourceNextRowHeadPtr[iCol - 1])
+			OutputGradYMat.ptr<uchar>(iRow)[iCol] = abs(
+				10 * (InputMat.ptr<uchar>(iRow + 1)[iCol] - InputMat.ptr<uchar>(iRow - 1)[iCol]) +
+				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol - 1] - InputMat.ptr<uchar>(iRow - 1)[iCol - 1]) +
+				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol + 1] - InputMat.ptr<uchar>(iRow - 1)[iCol + 1])
 			);
 		}
 	}
+	return 0;
 }

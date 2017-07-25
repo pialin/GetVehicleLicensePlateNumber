@@ -1,7 +1,7 @@
 #include "main.h"
-int GetDiff(Mat &InputMat, Mat & OutputMat)
+int GetProjectY(Mat &InputMat, Mat & OutputMat)
 {
-	if ( InputMat.channels() != 1)
+	if (InputMat.type() != CV_8UC1 || InputMat.channels() != 1)
 	{
 		ofstream LogStream(LogFilePath, ios::app);
 		time_t CurrentTime;
@@ -14,20 +14,20 @@ int GetDiff(Mat &InputMat, Mat & OutputMat)
 	}
 
 	OutputMat = Mat::zeros(
+		1,
 		int(InputMat.rows),
-		int(InputMat.cols),
 		CV_32FC1
 	);
 
-	for (int iRow = 0; iRow < InputMat.rows; iRow++)
+	for (int iCol = 0; iCol < InputMat.cols; iCol++)
 	{
 		//叠加同一行每一列的梯度值
-		for (int iCol = 1; iCol < InputMat.cols; iCol++)
+		for (int iRow = 0; iRow < InputMat.rows; iRow++)
 		{
-			OutputMat.ptr<float>(iRow)[iCol] = InputMat.ptr<float>(iRow)[iCol] - InputMat.ptr<float>(iRow)[iCol-1];
+			OutputMat.ptr<float>(0)[iCol] = OutputMat.ptr<float>(0)[iCol] +
+				InputMat.ptr<uchar>(iRow)[iCol];
 		}
 
 	}
 	return 0;
-
 }

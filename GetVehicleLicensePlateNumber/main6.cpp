@@ -1,18 +1,17 @@
-//添加OpenCV相关头文件
+/*添加标准库*/
+//为了使用cout添加输入输出流库
+#include  <iostream>
+//为了使用swap等
+#include<algorithm>
+//为了使用iota
+#include<numeric>
+//为了使用ifstream判断文件是否存在
+#include <fstream> 
+
+/*添加OpenCV相关头文件*/
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-//添加标准库输入输出流头文件
-#include <iostream>
-//添加算法库头文件
-#include<algorithm>//为了使用swap
-#include<numeric>//为了使用iota
-//添加数学运算库头文件
-//#include <cmath>
-
-#include <fstream> //为了使用ifstream判断文件是否存在
-//添加TinyXml2头文件
-#include "tinyxml2.h" //为了使用TinyXml2
-
+#include "tinyxml2.h"
 
 //使用C++标准库命名空间
 using namespace std;
@@ -405,7 +404,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		//如果通道数不为1,3或4，输出错误码并退出程序
 		else
 		{
-			cout << "Unkown image channel type: " << NumInputImageChannel;
+			cout << "Unkown image channel type: " << NumInputImageChannel <<endl;
 		}
 
 		//创建矩阵用于存放图像X方向的梯度值
@@ -806,11 +805,22 @@ int main(int ArgumentCount, char** ArgumentVector)
 		bool IsTitleLineFound = false;
 		bool IsPlateNumberLineFound = false;
 		int TitleLineIndex;
-
 		int PlateNumberLineIndex;
+		
+		int TemplateYTitleLineHeight;
+		int TemplateYPlateNumberLineHeight;
+
 
 		for (int iLine = 0; iLine < SegmentLineRow.size() - 1; iLine++)
 		{
+			if (iLine == 0)
+			{
+				TemplateYTitleLineHeight = SegmentLineRow[iLine + 1] - SegmentLineRow[iLine];
+			}
+			else if (iLine == 1)
+			{
+				TemplateYPlateNumberLineHeight = SegmentLineRow[iLine + 1] - SegmentLineRow[iLine];
+			}
 			if (SegmentLineRow[iLine] < 0)
 			{
 				SegmentLineRow[iLine] = 0;
@@ -955,14 +965,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 			//int TemplateImageTailBlanEndCol = 1042;
 
 
-			double  TitleLineHeight = (TemplateLineRow[1] - TemplateLineRow[0]) * ClosestMatchScale;
+
 			//int TemplateXLeftEdgeCol = 0;
 			//int TemplateXTitleStartCol = int(double(TemplateImageTitleStartCol) /
 			//	(TemplateImageWidth - 1)*(TemplateXWidth - 1));
 			//int TemplateXTitleEndCol = int(double(TemplateImageTitleEndCol) /
 			//	(TemplateImageWidth - 1)*(TemplateXWidth - 1));
 			//int TemplateXRightEdgeCol = TemplateXWidth;
-			double  EstimateTitleWidth = double(TitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth);
+			double  EstimateTitleWidth = double(TemplateYTitleLineHeight) / double(TemplateImageTitleLineHeight)*double(TemplateImageTitleWidth);
 			double EstimateTitleCharWidth = EstimateTitleWidth / 13.0;
 
 			Mat ProjectY_TitleLineGrad = Binary_ProjectY_LineGrad.row(TitleLineIndex);
@@ -990,13 +1000,13 @@ int main(int ArgumentCount, char** ArgumentVector)
 			int TitleWidthTemp = 0;
 			int TitleStartColTemp, TitleEndColTemp;
 			bool IsDilateLoopExitByBreak;
-			for (int iElementSize = 3; iElementSize < EstimateTitleCharWidth * 2; iElementSize = iElementSize + 2)
+			for (int iElementSize = 3; iElementSize < EstimateTitleCharWidth * 2.0; iElementSize = iElementSize + 2)
 			{
 
 				if (((TitleEndCol - TitleStartCol) - EstimateTitleWidth)*
 					((LastTitleEndCol - LastTitleStartCol) - EstimateTitleWidth) <= 0)
 				{
-					IsDilateLoopExitByBreak = true;
+					//IsDilateLoopExitByBreak = true;
 					break;
 				}
 				LastTitleStartCol = TitleStartCol;
@@ -1037,29 +1047,29 @@ int main(int ArgumentCount, char** ArgumentVector)
 					}
 					else if (ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) == 0 && ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol - 1) == 255)
 					{
-						double LeftSumTemp = 0.0;
-						for (int jCol = int(iCol - EstimateTitleCharWidth >= 0 ? iCol - EstimateTitleCharWidth : 0);
-							jCol < iCol;
-							jCol++)
-						{
-							LeftSumTemp = LeftSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
-						}
-						if (LeftSumTemp >= 0.75 * 255.0 *EstimateTitleCharWidth)
-						{
-							double RightSumTemp = 0.0;
-							for (int jCol = iCol;
-								jCol < int(iCol + EstimateTitleCharWidth < ProjectY_Binary_TitleLineGrad.cols ? iCol + EstimateTitleCharWidth : ProjectY_Binary_TitleLineGrad.cols);
-								jCol++)
-							{
-								RightSumTemp = RightSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
-							}
+						//double LeftSumTemp = 0.0;
+						//for (int jCol = int(iCol - EstimateTitleCharWidth >= 0 ? iCol - EstimateTitleCharWidth : 0);
+						//	jCol < iCol;
+						//	jCol++)
+						//{
+						//	LeftSumTemp = LeftSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
+						//}
+						//if (LeftSumTemp >= 0.75 * 255.0 *EstimateTitleCharWidth)
+						//{
+						//	double RightSumTemp = 0.0;
+						//	for (int jCol = iCol;
+						//		jCol < int(iCol + EstimateTitleCharWidth < ProjectY_Binary_TitleLineGrad.cols ? iCol + EstimateTitleCharWidth : ProjectY_Binary_TitleLineGrad.cols);
+						//		jCol++)
+						//	{
+						//		RightSumTemp = RightSumTemp + ProjectY_Binary_TitleLineGrad.at<uchar>(0, jCol);
+						//	}
 
-							if (RightSumTemp >= 0.75 * 255.0 * EstimateTitleCharWidth)
-							{
-								ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) = 255;
-								continue;
-							}
-						}
+						//	if (RightSumTemp >= 0.75 * 255.0 * EstimateTitleCharWidth)
+						//	{
+						//		ProjectY_Binary_TitleLineGrad.at<uchar>(0, iCol) = 255;
+						//		continue;
+						//	}
+						//}
 						TitleEndColTemp = iCol;
 						if (TitleEndColTemp - TitleStartColTemp > (TitleEndCol - TitleStartCol + iElementSize - 1))
 						{
@@ -1090,8 +1100,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 				LINE_AA,
 				0
 			);
-			if (abs(TitleEndCol - TitleStartCol - EstimateTitleWidth) >
-				abs(LastTitleEndCol - LastTitleStartCol - EstimateTitleWidth))
+
+			if (abs(TitleEndCol - TitleStartCol - EstimateTitleWidth)/ EstimateTitleWidth >
+				abs(LastTitleEndCol - LastTitleStartCol - EstimateTitleWidth)/ EstimateTitleWidth + 1.0/13.0)
 			{
 				TitleStartCol = LastTitleStartCol;
 				TitleEndCol = LastTitleEndCol;
@@ -1376,18 +1387,18 @@ int main(int ArgumentCount, char** ArgumentVector)
 					PlateNumberEndCol = LastPlateNumberEndCol;
 				}
 
-				if (abs(PlateNumberEndCol - PlateNumberStartCol) / EstimatePlateNumberWidth <= 0.8)
+				if ((PlateNumberEndCol - PlateNumberStartCol)  < 0.8 * EstimatePlateNumberWidth)
 				{
 					if ((PlateNumberStartCol + PlateNumberEndCol) / 2.0 <
-						InputImagePlateNumberAreaRect.x + InputImagePlateNumberAreaRect.width / 2.0)
+						InputImagePlateNumberAreaRect.width /2.0)
 					{
-						PlateNumberStartCol = int(PlateNumberEndCol - EstimatePlateNumberWidth >= 0 ?
+						PlateNumberStartCol = int(InputImagePlateNumberAreaRect.x + PlateNumberEndCol - EstimatePlateNumberWidth >= 0 ?
 							PlateNumberEndCol - EstimatePlateNumberWidth : 0);
 					}
 					else
 					{
-						PlateNumberEndCol = int(PlateNumberStartCol + EstimatePlateNumberWidth < InputImageWidth ?
-							PlateNumberStartCol + EstimatePlateNumberWidth : InputImageWidth);
+						PlateNumberEndCol = int(InputImagePlateNumberAreaRect.x +  PlateNumberStartCol + EstimatePlateNumberWidth < InputImageWidth ?
+							PlateNumberStartCol + EstimatePlateNumberWidth : InputImageWidth - InputImagePlateNumberAreaRect.x);
 					}
 
 				}
