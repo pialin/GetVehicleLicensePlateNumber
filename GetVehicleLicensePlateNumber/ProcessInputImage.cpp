@@ -374,6 +374,10 @@ int  ProcessInputImage
 			*InputTextLineDutyRatioMat.ptr<float>(iTextLine) = InputTextLineDutyRatio[iTextLine];
 			*TemplateTextLineDutyRatioMat.ptr<float>(iTextLine) = TemplateTextLineDutyRatio[iTextLine];
 		}
+		double DutyRatioCorrCoef;
+		GetCorrCoef(InputTextLineDutyRatioMat, TemplateTextLineDutyRatioMat, DutyRatioCorrCoef);
+
+
 	}
 
 }
