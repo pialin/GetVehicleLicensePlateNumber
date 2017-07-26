@@ -1,15 +1,10 @@
 #include "main.h"
+template <typename InputMatType>
 int GetProjectY(Mat &InputMat, Mat & OutputMat)
 {
-	if (InputMat.type() != CV_8UC1 || InputMat.channels() != 1)
+	if (InputMat.channels() != 1)
 	{
-		ofstream LogStream(LogFilePath, ios::app);
-		time_t CurrentTime;
-		tm CurrentLocalTime;
-		char CurrentTimeString[20];
-		localtime_s(&CurrentLocalTime, &CurrentTime);
-		strftime(CurrentTimeString, sizeof(CurrentTimeString), "[%Y/%m/%d %X]", &CurrentLocalTime);
-		LogStream << CurrentTimeString << "Error:" << endl << "Ilegal input parameter." << endl;
+		AppendLog("Error: Ilegal input parameter.");
 		return 1;
 	}
 
@@ -25,7 +20,7 @@ int GetProjectY(Mat &InputMat, Mat & OutputMat)
 		for (int iRow = 0; iRow < InputMat.rows; iRow++)
 		{
 			OutputMat.ptr<float>(0)[iCol] = OutputMat.ptr<float>(0)[iCol] +
-				InputMat.ptr<uchar>(iRow)[iCol];
+				InputMat.ptr<InputMatType>(iRow)[iCol];
 		}
 
 	}

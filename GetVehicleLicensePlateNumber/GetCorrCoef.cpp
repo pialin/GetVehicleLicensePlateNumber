@@ -1,4 +1,5 @@
 #include "main.h"
+template <typename InputMatType>
 int GetCorrCoef(Mat &InputMatA, Mat & InputMatB, double & CorrCoef)
 {
 	if (InputMatA.channels() != 1 ||
@@ -8,13 +9,7 @@ int GetCorrCoef(Mat &InputMatA, Mat & InputMatB, double & CorrCoef)
 		InputMatA.rows != InputMatB.rows  ||
 		InputMatA.cols != InputMatB.cols)
 	{
-		ofstream LogStream(LogFilePath, ios::app);
-		time_t CurrentTime;
-		tm CurrentLocalTime;
-		char CurrentTimeString[20];
-		localtime_s(&CurrentLocalTime, &CurrentTime);
-		strftime(CurrentTimeString, sizeof(CurrentTimeString), "[%Y/%m/%d %X]", &CurrentLocalTime);
-		LogStream << CurrentTimeString << "Error:" << endl << "Ilegal input parameter." << endl;
+		AppendLog("Error: Ilegal input parameter.");
 		return 1;
 	}
 
@@ -28,14 +23,15 @@ int GetCorrCoef(Mat &InputMatA, Mat & InputMatB, double & CorrCoef)
 	{
 		for (int iRow = 0; iRow < InputMatA.rows; iRow++)
 		{
-			SumATemp = SumATemp + *InputMatA.ptr<float>(iRow);
-			SumBTemp = SumBTemp + *InputMatB.ptr<float>(iRow);
-			SumABTemp = SumABTemp + *InputMatA.ptr<float>(iRow) *
-				*InputMatB.ptr<float>(iRow);
-			SumAATemp = SumAATemp + *InputMatA.ptr<float>(iRow)*
-				*InputMatA.ptr<float>(iRow);
-			SumBBTemp = SumBBTemp + *InputMatB.ptr<float>(iRow)*
-				*InputMatB.ptr<float>(iRow);
+
+			SumATemp = SumATemp + *InputMatA.ptr<InputMatType>(iRow);
+			SumBTemp = SumBTemp + *InputMatB.ptr<InputMatType>(iRow);
+			SumABTemp = SumABTemp + *InputMatA.ptr<InputMatType>(iRow) *
+				*InputMatB.ptr<InputMatType>(iRow);
+			SumAATemp = SumAATemp + *InputMatA.ptr<InputMatType>(iRow)*
+				*InputMatA.ptr<InputMatType>(iRow);
+			SumBBTemp = SumBBTemp + *InputMatB.ptr<InputMatType>(iRow)*
+				*InputMatB.ptr<InputMatType>(iRow);
 		}
 		CorrCoef = (SumABTemp - SumATemp * SumBTemp / InputMatA.rows) /
 			sqrt((SumAATemp - SumATemp * SumATemp / InputMatA.rows)*
@@ -45,14 +41,14 @@ int GetCorrCoef(Mat &InputMatA, Mat & InputMatB, double & CorrCoef)
 	{
 		for (int iCol= 0; iCol < InputMatA.cols; iCol++)
 		{
-			SumATemp = SumATemp + InputMatA.ptr<float>[0](iCol);
-			SumBTemp = SumBTemp + *InputMatB.ptr<float>[0](iCol);
-			SumABTemp = SumABTemp + *InputMatA.ptr<float>[0](iCol) *
-				*InputMatB.ptr<float>[0](iCol);
-			SumAATemp = SumAATemp + *InputMatA.ptr<float>[0](iCol)*
-				*InputMatA.ptr<float>[0](iCol);
-			SumBBTemp = SumBBTemp + *InputMatB.ptr<float>[0](iCol)*
-				*InputMatB.ptr<float>[0](iCol);
+			SumATemp = SumATemp + InputMatA.ptr<InputMatType>[0](iCol);
+			SumBTemp = SumBTemp + *InputMatB.ptr<InputMatType>[0](iCol);
+			SumABTemp = SumABTemp + *InputMatA.ptr<InputMatType>[0](iCol) *
+				*InputMatB.ptr<InputMatType>[0](iCol);
+			SumAATemp = SumAATemp + *InputMatA.ptr<InputMatType>[0](iCol)*
+				*InputMatA.ptr<InputMatType>[0](iCol);
+			SumBBTemp = SumBBTemp + *InputMatB.ptr<InputMatType>[0](iCol)*
+				*InputMatB.ptr<InputMatType>[0](iCol);
 		}
 		CorrCoef = (SumABTemp - SumATemp * SumBTemp / InputMatA.cols) /
 			sqrt((SumAATemp - SumATemp * SumATemp / InputMatA.cols)*

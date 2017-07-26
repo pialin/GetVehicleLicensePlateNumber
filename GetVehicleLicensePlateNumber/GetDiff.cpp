@@ -1,19 +1,15 @@
 #include "main.h"
+template <typename InputMatType>
 int GetDiff(Mat &InputMat, Mat & OutputMat)
 {
+	Mat  OutputMatTemp;
 	if ( InputMat.channels() != 1)
 	{
-		ofstream LogStream(LogFilePath, ios::app);
-		time_t CurrentTime;
-		tm CurrentLocalTime;
-		char CurrentTimeString[20];
-		localtime_s(&CurrentLocalTime, &CurrentTime);
-		strftime(CurrentTimeString, sizeof(CurrentTimeString), "[%Y/%m/%d %X]", &CurrentLocalTime);
-		LogStream << CurrentTimeString << "Error:" << endl << "Ilegal input parameter." << endl;
+		AppendLog("Error: Ilegal input parameter.");
 		return 1;
 	}
 
-	OutputMat = Mat::zeros(
+	OutputMatTemp = Mat::zeros(
 		int(InputMat.rows),
 		int(InputMat.cols),
 		CV_32FC1
@@ -24,10 +20,12 @@ int GetDiff(Mat &InputMat, Mat & OutputMat)
 		//叠加同一行每一列的梯度值
 		for (int iCol = 1; iCol < InputMat.cols; iCol++)
 		{
-			OutputMat.ptr<float>(iRow)[iCol] = InputMat.ptr<float>(iRow)[iCol] - InputMat.ptr<float>(iRow)[iCol-1];
+			OutputMatTemp.ptr<float>(iRow)[iCol] = InputMat.ptr<InputMatType>(iRow)[iCol] - InputMat.ptr<float>(iRow)[iCol-1];
 		}
 
 	}
+
+	OutputMatTemp = OutputMatTemp.clone();
 	return 0;
 
 }

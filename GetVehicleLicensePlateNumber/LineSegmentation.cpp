@@ -1,371 +1,379 @@
-//Ìí¼ÓOpenCVÏà¹ØÍ·ÎÄ¼ş
-#include "opencv2/imgproc/imgproc.hpp"
-#include "opencv2/highgui/highgui.hpp"
-//Ìí¼Ó±ê×¼¿âÊäÈëÊä³öÁ÷Í·ÎÄ¼ş
-#include <iostream>
-//Ìí¼ÓËã·¨¿âÍ·ÎÄ¼ş
-#include<algorithm>//ÎªÁËÊ¹ÓÃswap
-#include<numeric>//ÎªÁËÊ¹ÓÃiota
-//Ìí¼ÓÊıÑ§ÔËËã¿âÍ·ÎÄ¼ş
-//#include <cmath>
+ï»¿#include "main.h"
 
-//Ê¹ÓÃC++±ê×¼¿âÃüÃû¿Õ¼ä
-using namespace std;
-
-//Ê¹ÓÃOpenCV¿âÃüÃû¿Õ¼ä
-using namespace cv;
-
-//´ÓÄ£°åÍ¼Æ¬ÖĞ»ñµÃµÄÎ»ÖÃĞÅÏ¢
-//Ä£°åÍ¼Æ¬µÄ¿í¡¢¸ß
-const double TemplateWidth = 1044;
-const double TemplateHeight = 716;
-//Ä£°åÍ¼Æ¬±êÌâËùÔÚÇøÓòµÄ¿í¡¢¸ß¼°ÇøÓòÖĞĞÄµÄXY×ø±ê
-const double TemplateTitleWidth = 684;
-const double TemplateTitleHeight = 68;
-const double TemplateTitleCenterX = 512;
-const double TemplateTitleCenterY = 72;
-//Ä£°åÍ¼Æ¬±êÌâ²¿·ÖµÄË®Æ½¼äÏ¶¸ß¶È£¨Ë®Æ½Í¶Ó°Ê±ÖĞÎÄºÍÓ¢ÎÄÖ®¼ä³öÏÖµÄ¿ÕÏ¶¿í¶È£©
-const double TemplateTitleGapHeight = 5;
-//Ä£°åÍ¼Æ¬±êÌâ²¿·ÖµÄ´¹Ö±¼äÏ¶¿í¶È£¨´¹Ö±Í¶Ó°Ê±ÎÄ×ÖÖ®¼ä³öÏÖµÄ¿ÕÏ¶¿í¶È£©
-const double TemplateTitleGapWidth = 40;
-//Ä£°åÍ¼Æ¬±êÌâ²¿·ÖÓ¢ÎÄµÄ¸ß¶È
-const double TemplateTitleEnglishHeight = 14;
-//Ä£°åÍ¼Æ¬³µÅÆÇøÓòµÄ¿í¡¢¸ß¼°ÇøÓòÖĞĞÄµÄXY×ø±ê
-const double TemplatePlateWidth = 174;
-const double TemplatePlateHeight = 41;
-const double TemplatePlateCenterX = 271;
-const double TemplatePlateCenterY = 166;
-
-double WindowHeight = 500.0;
-
-template <typename SortValueType>
-vector<size_t>  SortIndex(vector<SortValueType> &InputValueVector) {
-
-	// initialize original index locations
-	vector<size_t> IndexVector(InputValueVector.size());
-	iota(IndexVector.begin(), IndexVector.end(), 0);
-
-	// sort indexes based on comparing values in v
-	sort(IndexVector.begin(),
-		IndexVector.end(),
-		[&InputValueVector](size_t x, size_t y) {return InputValueVector[x] > InputValueVector[y]; });
-	return IndexVector;
-}
-
-
-int Dft1D(Mat & Input,Mat & Output)
+int  TextLineSegmentation
+(
+	Mat & InputImage_InputGradX,
+	Mat & InputImage_InputGradY,
+	vector <TextLineInfo>  & InputImageTextLineInfo,
+	double & ClosestMatchScale
+)
 {
-	Mat Pad_Input;                            //expand input image to optimal size
-	int NumPadInputCol = getOptimalDFTSize(Input.cols);
-	copyMakeBorder(Input, Pad_Input, 0, 0, 0, NumPadInputCol - Input.cols, BORDER_CONSTANT, Scalar::all(0));
-
-	Mat DftPlane[] = { Mat_<float>(Pad_Input), Mat::zeros(Pad_Input.size(), CV_32F) };
-	Mat DftComplexMat;
-	merge(DftPlane, 2, DftComplexMat);         // Add to the expanded another plane with zeros
-
-	dft(DftComplexMat, DftComplexMat,DFT_ROWS);            // this way the result may fit in the source matrix
-
-										
-	split(DftComplexMat, DftPlane);                   // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
-	magnitude(DftPlane[0], DftPlane[1], DftPlane[0]);// planes[0] = magnitude  
-	Mat DftMagnitude = DftPlane[0];
-	//DftMagnitude += Scalar::all(1);                    // switch to logarithmic scale
-	//log(DftMagnitude, Output);
-	////Output =  DftPlane[0];
-	//// crop the spectrum, if it has an odd number of rows or columns
-	////Output( Range::all(),Range(3, 20)) = DftMagnitude(Range::all(), Range(3, 20));
-	float SumTemp = 0;
-	for (int iFreq = 8 ; iFreq < 16; iFreq++)
-	{
-		for (int iHarmonic = 1; iHarmonic < 3; iHarmonic++)
-		{
-			SumTemp = SumTemp + DftMagnitude.at<float>(0, iHarmonic*iFreq);
-		}
-		Output.at<float>(0, iFreq) = SumTemp;
-		SumTemp = 0;
-	}
-	normalize(Output, Output,1.0, 0.0, NORM_MINMAX);
-
-	return 0;
-}
-
-//Ö÷º¯Êı£¬ÊäÈëÃüÁîĞĞ²ÎÊı£º
-//µÚ1¸öÎª´ı´¦ÀíÍ¼Æ¬µÄÂ·¾¶£º¿ÉÒÔÊ¹ÓÃGlob±í´ïÊ½Ñ¡ÖĞ¶à¸öÎÄ¼ş£¬²»Í¬ÎÄ¼ş½«Öğ¸öÑ­»·´¦Àí
-//µÚ2¸ö²ÎÊıÎª½á¹ûÊä³öÂ·¾¶,Ä¬ÈÏÔÚ¸ÃÎÄ¼ş¼ĞÏÂÒÔ¡°Result_¡±+ÊäÈëÍ¼ÏñÎÄ¼şÃûµÄ·½Ê½Êä³ö½á¹û
-int main(int ArgumentCount, char** ArgumentVector)
-{
-
-
-	//·Ö±ğ¶ÁÈ¡Á½¸öÃüÁî²ÎÊı
-	String SearchGlobExpression = ArgumentVector[1];
-	String OutputPath = ArgumentVector[2];
-
-	//´´½¨ÓÃÓÚ´æ´¢Í¼Æ¬Â·¾¶µÄStringÊı×é
-	vector<String> ImagePathList;
-
-	//¸ù¾İÊäÈëGlob±í´ïÊ½²éÕÒ·ûºÏµÄÍ¼Æ¬
-	glob(
-		SearchGlobExpression,//ÎÄ¼ş²éÕÒGlob±í´ïÊ½
-		ImagePathList, //Êä³öÍ¼ÏñÎÄ¼şÁĞ±í
-		false//²»½øĞĞµİ¹é£¬¼´²»¶Ô×ÓÎÄ¼ş¼Ğ½øĞĞËÑË÷
+	int InputImageHeight = InputImage_InputGradY.rows;
+	Mat Binary_InputGradY;
+	threshold(
+		InputImage_InputGradY, //è¾“å…¥çŸ©é˜µ
+		Binary_InputGradY, //è¾“å‡ºçŸ©é˜µ
+		128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+		255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+		CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
 	);
+	Binary_InputGradY.convertTo(Binary_InputGradY, CV_8UC1);
 
-	//¶Ô·ûºÏµÄÍ¼Æ¬½øĞĞ±éÀú
-	for (size_t iInput = 0; iInput < ImagePathList.size(); iInput++)
+	////åˆ›å»ºXæ–¹å‘æ¢¯åº¦æŠ•å½±å‘é‡
+	Mat  Binary_ProjectX_InputGradY;
+	GetProjectX<uchar>(Binary_InputGradY, Binary_ProjectX_InputGradY);
+
+	Mat ProjectX_Diff_InputGradY;
+	GetDiff<float>(Binary_ProjectX_InputGradY, ProjectX_Diff_InputGradY);
+
+	vector<PeakInfo> InputGradY_InputGradYPeak;
+	GetSortedPeak<float>(ProjectX_Diff_InputGradY, InputGradY_InputGradYPeak);
+
+
+	bool IsMatchHeightChange,IsPeakChange;
+
+	int CurrentMatchHeight = 0;
+	int PreviousMatchHeight = 0;
+
+	double MaxCorrCoef = 0.0;
+	double ClosestMatchScale = 0.0;
+
+	double MinMatchScale = 0.6;
+	double MaxMatchScale = 1.2;
+
+	double MatchScaleStep = 0.01;
+	double CurrentMatchScale = MinMatchScale;
+
+	double MinPeakGap;
+
+	vector<PeakInfo> Filter_InputGradYPeak,Filter_InputGradYPeakTemp;
+
+	Mat TemplateYGradY;
+
+	vector <int> TemplateYPeakRow(8);
+
+	double ClosestMatchScale;
+	vector<int> ClosestTemplateYPeakRow(8);
+
+	for (int iScale = 0;CurrentMatchScale < MaxMatchScale; iScale++)
 	{
-		//ĞÂ½¨¾ØÕóRawImageMatÓÃÓÚ´æ´¢Ô­Ê¼Í¼Æ¬Êı¾İ
-		Mat RawInput;
+		CurrentMatchScale = MinMatchScale + iScale * MatchScaleStep ;
 
-		//¸ù¾İµÚÒ»¸ö²ÎÊıµÄÎÄ¼şÂ·¾¶½øĞĞÍ¼Æ¬¶ÁÈ¡
-		RawInput = imread(
-			ImagePathList[iInput],//ÊäÈëÍ¼Æ¬Â·¾¶
-			CV_LOAD_IMAGE_UNCHANGED//ÒÔ²»ĞŞ¸ÄÍ¨µÀÀàĞÍµÄ·½Ê½¶ÁÈ¡Í¼Æ¬
+		IsMatchHeightChange = false;
+		IsPeakChange = false;
+
+		MinPeakGap = ProjectX_Diff_InputGradY.rows * CurrentMatchScale * 
+			(TemplateImageTitleHeight / TemplateImageHeight) ;
+		if (Filter_InputGradYPeak.empty() != true)
+		{ 
+			Filter_InputGradYPeakTemp = Filter_InputGradYPeak;
+		}
+
+		FilterSortedPeak(InputGradY_InputGradYPeak,
+			MinPeakGap,
+			Filter_InputGradYPeak
 		);
-
-		//¼ì²é¶ÁÈëµÄMatÊÇ·ñ°üº¬Í¼ÏñÊı¾İ
-		if (!RawInput.data)
+		
+		if (Filter_InputGradYPeak.size() !=
+			Filter_InputGradYPeakTemp.size())
 		{
-			//ÏÔÊ¾Í¼Æ¬¶ÁÈ¡Ê§°ÜÌáÊ¾ĞÅÏ¢
-			cout << " Error:  Can't read image data from" << ArgumentVector[1] << endl;
-			//·µ»Ø´íÎóÂë²¢ÍË³ö³ÌĞò
-			return -1;
+			IsPeakChange = true;
 		}
-		//¼ÆËãÊäÈëÍ¼ÏñµÄ¿í¡¢¸ß¡¢Ãæ»ıºÍ¿í¸ß±È
-		const double InputImageWidth = RawInput.cols;
-		const double InputImageHeight = RawInput.rows;
-
-
-		//½«Í¼Æ¬×ª»»³É»Ò½×Í¼Ïñ
-		Mat Raw_GrayInput;
-
-		//»ñÈ¡Í¼Æ¬µÄÍ¨µÀÊı
-		int NumRawInputChannel = RawInput.channels();
-
-		//Èç¹ûÍ¼ÏñÎª3Í¨µÀ²ÊÉ«Í¼Ïñ
-		if (NumRawInputChannel == 3)
+		else 
 		{
-			//½«Í¼Æ¬ÓÉBGR×ª»»³É»Ò½×Í¼Ïñ
-			cvtColor(
-				RawInput,//ÊäÈëÍ¼Æ¬¾ØÕó
-				Raw_GrayInput,//Êä³öÍ¼Æ¬¾ØÕó 
-				COLOR_BGR2GRAY//½«Í¼Æ¬ÓÉBGR£¨OpenCVÄ¬ÈÏÍ¨µÀ¸ñÊ½£©×ª»»³É»Ò½×Í¼Ïñ
-			);
-		}
-
-		//Èç¹ûÍ¼ÏñÎª4Í¨µÀ£¨°üº¬alphaÍ¨µÀ£©Í¼Ïñ£¬Ôò½«Æä×ª»»³É»Ò½×Í¼Ïñ
-		else if (NumRawInputChannel == 4)
-		{
-			//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
-			cvtColor(
-				RawInput,
-				Raw_GrayInput,
-				COLOR_BGRA2GRAY//½«Í¼Æ¬ÓÉBGRA×ª»»³É»Ò½×Í¼Ïñ
-			);
-		}
-		//Èç¹ûÍ¼ÏñÒÑ¾­Îªµ¥Í¨µÀ»Ò½×Í¼Ïñ£¬Ö±½Ó½«ResizedImageMat¸³¸øGrayImageMat
-		else if (NumRawInputChannel == 1)
-		{
-			Raw_GrayInput = RawInput;
-		}
-
-		//Èç¹ûÍ¨µÀÊı²»Îª1,3»ò4£¬Êä³ö´íÎóÂë²¢ÍË³ö³ÌĞò
-		else
-		{
-			cout << "Unkown image channel type: " << RawInput.channels();
-		}
-
-
-		//Ö¸¶¨´°¿ÚÃû³Æ
-		const char* MainWindowName = "get plate number from vehicle license";
-
-
-		//´´½¨ÏàÓ¦µÄ´°¿Ú
-		//namedWindow(
-		//	MainWindowName,//´°¿ÚÃû³Æ
-		//	CV_WINDOW_NORMAL//½¨Á¢Ò»¸ö¸ù¾İÍ¼Æ¬×Ô¶¯ÉèÖÃ´óĞ¡µÄ´°¿Ú£¬µ«²»ÄÜÊÖ¶¯ĞŞ¸Ä³ß´ç
-		//);
-
-		//resizeWindow(MainWindowName, int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
-
-		//imshow(
-		//	MainWindowName,
-		//	Raw_GrayInput
-		//);
-
-		//waitKey(0);
-
-
-		//´´½¨¾ØÕóÓÃÓÚ´æ·ÅÍ¼ÏñX·½ÏòµÄÌİ¶ÈÖµ
-		Mat GrayInput_Grad(
-			int(InputImageHeight),//¾ØÕóµÄµÚÒ»Î¬£¨¸ß¶È£©³ß´ç
-			int(InputImageWidth), //¾ØÕóµÄµÚ¶şÎ¬£¨¿í¶È£©³ß´ç
-			CV_8UC1,//¾ØÕóµÄÖµÀàĞÍ£¬ÔÚÕâÀïÊÇµ¥Í¨µÀ8Î»ÎŞ·ûºÅÕûÊı 
-			Scalar(0)//¾ØÕóÌî³äµÄ³õÊ¼Öµ
-		);
-
-		double TempGradX,TempGradY;
-		//Öğ¸öÏñËØ¼ÆËã´¹Ö±Ìİ¶È£¬ÉÏÏÂ×óÓÒ±ßÔµ²»×÷¼ÆËã£¬ÆäÖµÎªÌî³äµÄ³õÊ¼Öµ0
-		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		{
-			for (int iCol = 1; iCol < (InputImageWidth - 1); iCol++)
+			for (int iPeak = 0; iPeak < Filter_InputGradYPeak.size(); iPeak++)
 			{
-				TempGradY = (10 * (Raw_GrayInput.at<uchar>(iRow + 1, iCol - 1) - Raw_GrayInput.at<uchar>(iRow - 1, iCol - 1))
-					+ 3* (Raw_GrayInput.at<uchar>(iRow + 1, iCol) - Raw_GrayInput.at<uchar>(iRow - 1, iCol))
-					+ 3* (Raw_GrayInput.at<uchar>(iRow + 1, iCol + 1) - Raw_GrayInput.at<uchar>(iRow - 1, iCol + 1))) / 32.0;
-
-				TempGradX = (10 * (Raw_GrayInput.at<uchar>(iRow, iCol + 1) - Raw_GrayInput.at<uchar>(iRow, iCol - 1))
-					+ 3 * (Raw_GrayInput.at<uchar>(iRow - 1, iCol + 1) - Raw_GrayInput.at<uchar>(iRow - 1, iCol - 1))
-					+ 3 * (Raw_GrayInput.at<uchar>(iRow - 1, iCol - 1) - Raw_GrayInput.at<uchar>(iRow + 1, iCol - 1))) / 32.0; 
-				GrayInput_Grad.at<uchar>(iRow, iCol) = uchar(fabs(TempGradY));
-				//GrayInput_Grad.at<uchar>(iRow, iCol) = uchar(fabs(TempGradX) + fabs(TempGradY));
-			}
-		}
-
-		Mat GrayInput_BinaryGrad;
-
-		threshold(
-			GrayInput_Grad, //ÊäÈë¾ØÕó
-			GrayInput_BinaryGrad, //Êä³ö¾ØÕó
-			128, //µü´ú³õÊ¼ãĞÖµ
-			255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-			CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
-		);
-
-		imshow(
-			MainWindowName,
-			GrayInput_BinaryGrad
-		);
-		//´´½¨YÌİ¶ÈÍ¶Ó°ÏòÁ¿
-		Mat  Binary_ProjectYGrad(
-			int(InputImageHeight),//¾ØÕóĞĞÊı
-			1,//¾ØÕóÁĞÊı
-			CV_8UC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
-		);
-
-		//ÁÙÊ±¼ÓºÍ±äÁ¿
-		double SumTemp;
-		for (int iRow = 0; iRow < InputImageHeight; iRow++)
-		{
-			//Ã¿´Îµş¼ÓÇ°½«¼ÓºÍ±äÁ¿ÇåÁã
-			SumTemp = 0;
-
-			//µş¼ÓÍ¬Ò»ĞĞÃ¿Ò»ÁĞµÄÌİ¶ÈÖµ
-			for (int iCol = 0; iCol < InputImageWidth; iCol++)
-			{
-				SumTemp += double(GrayInput_BinaryGrad.at<uchar>(iRow, iCol));
-			}
-			//Çóµş¼ÓÖµµÄ¾ùÖµ×÷ÎªË®Æ½Í¶Ó°ºóµÄÌİ¶ÈÖµ
-			Binary_ProjectYGrad.at<uchar>(iRow, 0) = unsigned char(SumTemp / InputImageWidth);
-		}
-
-		Mat ProjectY_DiffGrad(
-			int(InputImageHeight),//¾ØÕóĞĞÊı
-			1,//¾ØÕóÁĞÊı
-			CV_8UC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
-		);
-		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		{
-			ProjectY_DiffGrad.at<uchar>(iRow, 0) =
-				abs(Binary_ProjectYGrad.at<uchar>(iRow, 0) - Binary_ProjectYGrad.at<uchar>(iRow - 1, 0));
-
-		}
-		Binary_ProjectYGrad = ProjectY_DiffGrad;
-		/*int MedianBlurKernelSize = 2 * int(InputImageHeight*0.003)+1;
-		medianBlur(
-			ProjectY_DiffGrad,
-			Binary_ProjectYGrad,
-			MedianBlurKernelSize
-		);*/
-
-		Mat ProjectYGrad_Histogram(
-			int(InputImageHeight),//¾ØÕóĞĞÊı
-			int(InputImageWidth),//¾ØÕóÁĞÊı
-			CV_8UC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
-		);
-
-
-
-
-		//Mat ProjectY_BinaryGrad;
-		//threshold(
-		//	Binary_ProjectYGrad, //ÊäÈë¾ØÕó
-		//	ProjectY_BinaryGrad, //Êä³ö¾ØÕó
-		//	128, //µü´ú³õÊ¼ãĞÖµ
-		//	255, //×î´óÖµ£¨³¬¹ıãĞÖµ½«ÉèÎª´ËÖµ£©
-		//	CV_THRESH_OTSU //ãĞÖµ»¯Ñ¡ÔñµÄ·½·¨:Otsu·¨
-		//);
-
-		uchar HistogramColor= 255;
-		for (int iRow = 1; iRow < InputImageHeight - 1; iRow++)
-		{
-			/*if (Diff_BinaryGradY.at<uchar>(iRow,0) == 255)
-			{
-				HistogramColor = 255; 
-			}
-			else
-			{
-				HistogramColor = 100;
-			}*/
-
-			//¸ù¾İÍ¶Ó°ºóµÄÌİ¶ÈÖµ»æÖÆStemÍ¼£¬Ã¿Ò»ĞĞ¸ù¾İStemÖµ´óĞ¡»æÖÆ²»Í¬¿í¶ÈµÄStem
-			for (int iCol = 0; iCol <  Binary_ProjectYGrad.at<uchar>(iRow, 0) / 255.0*InputImageWidth; iCol++)
-			{ 
-				ProjectYGrad_Histogram.at<uchar>(iRow, iCol) = HistogramColor;
-			}
-		}
-
-		//´´½¨ÏàÓ¦µÄ´°¿Ú
-		//namedWindow(
-		//	"ProjectYGrad_Histogram",//´°¿ÚÃû³Æ
-		//	CV_WINDOW_NORMAL//½¨Á¢Ò»¸ö¸ù¾İÍ¼Æ¬×Ô¶¯ÉèÖÃ´óĞ¡µÄ´°¿Ú£¬µ«²»ÄÜÊÖ¶¯ĞŞ¸Ä³ß´ç
-		//);
-		//resizeWindow("ProjectYGrad_Histogram", int(WindowHeight * InputImageWidth / InputImageHeight), int(WindowHeight));
-
-		//imshow(
-		//	"ProjectYGrad_Histogram",
-		//	ProjectYGrad_Histogram
-		//);
-		//waitKey(0);
-
-		Mat DftMagnitude(
-			1,
-			int(InputImageHeight),
-			CV_32FC1,//¾ØÕóÖµµÄÀàĞÍ£¨8Î»ÎŞ·ûºÅÕûÊıµ¥Í¨µÀ£©
-			Scalar(0.0)//¾ØÕóÌîÈëµÄ³õÊ¼Öµ
-			);
-		Binary_ProjectYGrad = Binary_ProjectYGrad.t();
-		Dft1D(Binary_ProjectYGrad, DftMagnitude);
-
-		Mat DftMagnitude_Histogram(
-			int(InputImageHeight),
-			int(InputImageWidth),
-			CV_8UC1,
-			Scalar(0)
-		);
-
-		for (int iRow = 0; iRow < InputImageHeight ; iRow++)
-		{
-			//if (Diff_BinaryGradY.at<uchar>(iRow, 0) == 255)
-			//{
-			//	HistogramColor = 255;
-			//}
-			//else
-			//{
-			//	HistogramColor = 100;
-			//}
-
-			//¸ù¾İÍ¶Ó°ºóµÄÌİ¶ÈÖµ»æÖÆStemÍ¼£¬Ã¿Ò»ĞĞ¸ù¾İStemÖµ´óĞ¡»æÖÆ²»Í¬¿í¶ÈµÄStem
-			for (int iCol = 0; iCol < DftMagnitude.at<float>(0, iRow)*InputImageWidth; iCol++)
-			{
- 				DftMagnitude_Histogram.at<uchar>(iRow, iCol) = HistogramColor;
+				if (Filter_InputGradYPeak[iPeak].PeakIndex !=
+					Filter_InputGradYPeakTemp[iPeak].PeakIndex)
+				{
+					IsPeakChange = true;
+					break;
+				}
 			}
 		}
 		
 
-   	}
-	//·µ»Ø0²¢Õı³£ÍË³ö³ÌĞò
-	return 0;
+		PreviousMatchHeight = CurrentMatchHeight;
+
+		CurrentMatchHeight = int(InputImageHeight * CurrentMatchScale);
+
+		if (CurrentMatchHeight != PreviousMatchHeight)
+		{
+			IsMatchHeightChange = true;
+		}
+
+		if (IsPeakChange == true || IsMatchHeightChange == true)
+		{
+			if (IsMatchHeightChange == true)
+			{
+				resize(
+					TemplateImageGradY,
+					TemplateYGradY,
+					Size(1, CurrentMatchHeight),
+					0,
+					0,
+					INTER_LINEAR
+				);
+			}
+			if (IsMatchHeightChange == true)
+			{
+				TemplateYPeakRow.clear();
+				for (int iPeak = 0; iPeak < TemplateImagePeakRow.size(); iPeak++)
+				{
+
+					TemplateYPeakRow[iPeak] = 
+						(TemplateImagePeakRow[iPeak] - TemplateImagePeakRow.back())*CurrentMatchHeight / TemplateImageHeight);
+				}
+			}
+			bool FlagNextStep;
+			vector <int> MatchStep;
+
+			for (int iStep = (*(Filter_InputGradYPeak.end()-1)).PeakIndex - 
+				(*(Filter_InputGradYPeak.end() - 2)).PeakIndex;
+				iStep < InputImageHeight + (*(Filter_InputGradYPeak.end() - 1)).PeakIndex -
+				(*(Filter_InputGradYPeak.end() - 2)).PeakIndex;
+				iStep++)
+			{
+				FlagNextStep = false;
+				for (int iPeak =0;iPeak <  TemplateYPeakRow.size() && !FlagNextStep;iPeak++)
+				{
+					if (TemplateYPeakRow[iPeak] + iStep >= 0 && TemplateYPeakRow[iPeak] + iStep < InputImageHeight)
+					{
+						for (int jPeak = 0;jPeak < TemplateYPeakRow.size();jPeak++)
+						{
+							if (TemplateYPeakRow[iPeak] + iStep == Filter_InputGradYPeak[jPeak].PeakIndex)
+							{
+								FlagNextStep = true;
+								MatchStep.push_back(iStep);
+								break;
+							}
+						}
+					}
+				}
+				int InputMatchBegin, InputMatchEnd, TemplateMatchBegin, TemplateMatchEnd;
+
+				double CurrentCorrCoef, MaxCorrCoef = 0; 
+
+				for (iStep = 0; iStep < MatchStep.size(); iStep++)
+				{
+					InputMatchBegin = TemplateYPeakRow[0] + MatchStep[iStep] < 0 ?
+						0 : TemplateYPeakRow[0] + MatchStep[iStep];
+					InputMatchEnd = TemplateYPeakRow.back() + MatchStep[iStep] <= InputImageHeight ?
+						TemplateYPeakRow.back() + MatchStep[iStep] : InputImageHeight;
+
+					TemplateMatchBegin = InputMatchBegin - (TemplateYPeakRow[0] + MatchStep[iStep]);
+					TemplateMatchEnd = InputMatchEnd - (TemplateYPeakRow[0] + MatchStep[iStep]);
+
+					Mat InputData = Binary_ProjectX_InputGradY.rowRange(InputMatchBegin, InputMatchEnd);
+					Mat TemplateData = TemplateYGradY.rowRange(TemplateMatchBegin, TemplateMatchEnd);
+
+					GetCorrCoef<float>(InputData, TemplateData, CurrentCorrCoef);
+
+					if (CurrentCorrCoef < MaxCorrCoef)
+					{
+						MaxCorrCoef = CurrentCorrCoef;
+						ClosestMatchScale = CurrentMatchScale;
+						ClosestTemplateYPeakRow = TemplateYPeakRow;
+					}
+				}
+			}
+		}
+	}
+	vector <double> InputTextLineDutyRatio;
+	double TextLineDutyRatio;
+	TextLineInfo TextLineInfoTemp;
+
+	Mat Binary_ProjectY_TextLineGradX;
+	Mat ProjectY_Binary_TextLineGradX;
+
+	InputImageTextLineInfo.swap(vector <TextLineInfo>());
+
+	for (int iTextLine = 0; iTextLine < ClosestTemplateYPeakRow.size() - 1; iTextLine++)
+	{
+
+		if (ClosestTemplateYPeakRow[iTextLine] >= 0 &&
+			ClosestTemplateYPeakRow[iTextLine] < InputImageHeight)
+		{
+			TextLineInfoTemp.StartRow = ClosestTemplateYPeakRow[iTextLine];
+		}
+		else if (ClosestTemplateYPeakRow[iTextLine] < 0)
+		{
+			TextLineInfoTemp.StartRow = 0;
+		}
+		else
+		{
+			TextLineInfoTemp.StartRow = InputImageHeight;
+		}
+
+		if (ClosestTemplateYPeakRow[iTextLine + 1] >= 0 &&
+			ClosestTemplateYPeakRow[iTextLine + 1] < InputImageHeight)
+		{
+			TextLineInfoTemp.EndRow = ClosestTemplateYPeakRow[iTextLine + 1];
+		}
+		else if (ClosestTemplateYPeakRow[iTextLine] < 0)
+		{
+			TextLineInfoTemp.EndRow = 0;
+		}
+		else
+		{
+			TextLineInfoTemp.EndRow = InputImageHeight;
+		}
+
+		if (TextLineInfoTemp.EndRow  > TextLineInfoTemp.StartRow)
+		{
+			Mat TextLineGradX = InputImage_InputGradX.rowRange
+			(TextLineInfoTemp.StartRow, TextLineInfoTemp.EndRow);
+			Mat Binary_TextLineGradX;
+			threshold(
+				TextLineGradX, //è¾“å…¥çŸ©é˜µ
+				Binary_TextLineGradX, //è¾“å‡ºçŸ©é˜µ
+				128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+				255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+				CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
+			);
+			Binary_TextLineGradX.convertTo(Binary_TextLineGradX, CV_8UC1);
+
+			GetProjectY<uchar>(Binary_TextLineGradX, Binary_ProjectY_TextLineGradX);
+
+			threshold(
+				Binary_ProjectY_TextLineGradX, //è¾“å…¥çŸ©é˜µ
+				ProjectY_Binary_TextLineGradX, //è¾“å‡ºçŸ©é˜µ
+				128, //è¿­ä»£åˆå§‹é˜ˆå€¼
+				255, //æœ€å¤§å€¼ï¼ˆè¶…è¿‡é˜ˆå€¼å°†è®¾ä¸ºæ­¤å€¼ï¼‰
+				CV_THRESH_OTSU //é˜ˆå€¼åŒ–é€‰æ‹©çš„æ–¹æ³•:Otsuæ³•
+			);
+
+			GetDutyRatio<uchar>(ProjectY_Binary_TextLineGradX, TextLineDutyRatio);
+			InputTextLineDutyRatio.push_back(TextLineDutyRatio);
+			TextLineInfoTemp.TextLineIndex = iTextLine;
+			TextLineInfoTemp.TextLineHeight = ClosestTemplateYPeakRow[iTextLine + 1] -
+				ClosestTemplateYPeakRow[iTextLine];
+			InputImageTextLineInfo.push_back(TextLineInfoTemp);
+		}
+
+	}
+
+	Mat InputDutyRatio
+	(
+		InputTextLineDutyRatio.size(),
+		1,
+		CV_64FC1,
+		Scalar(0.0)
+	);
+
+	Mat TemplateDutyRatio = InputDutyRatio.clone();
+
+	double UpDutyRatioCorrCoef=0.0, DutyRatioCorrCoef=0.0, DownDutyRatioCorrCoef=0.0;
+
+	for (int iRow = 0; iRow < InputDutyRatio.rows; iRow++)
+	{
+		*InputDutyRatio.ptr<double>(iRow) = InputTextLineDutyRatio[iRow];
+		*TemplateDutyRatio.ptr<double>(iRow) = *TemplateImagePeakRow.ptr<double>(InputTextLineIndex[iRow]);
+	}
+	GetCorrCoef<double>(InputDutyRatio, TemplateDutyRatio, DutyRatioCorrCoef);
+
+	if (InputTextLineIndex.back() < TemplateImagePeakRow.size() - 1)
+	{
+		Mat InputDutyRatio
+		(
+			InputTextLineDutyRatio.size(),
+			1,
+			CV_64FC1,
+			Scalar(0.0)
+		);
+		Mat TemplateDutyRatio = InputDutyRatio.clone();
+		for (int iRow = 0; iRow < InputDutyRatio.rows; iRow++)
+		{
+			*InputDutyRatio.ptr<double>(iRow) = InputTextLineDutyRatio[iRow];
+			*TemplateDutyRatio.ptr<double>(iRow) = *TemplateImagePeakRow.ptr<double>(InputTextLineIndex[iRow] + 1);
+		}
+		GetCorrCoef<double>(InputDutyRatio, TemplateDutyRatio, UpDutyRatioCorrCoef);
+	}
+	else
+	{
+		Mat InputDutyRatio
+		(
+			InputTextLineDutyRatio.size() - 1,
+			1,
+			CV_64FC1,
+			Scalar(0.0)
+		);
+		Mat TemplateDutyRatio = InputDutyRatio.clone();
+		for (int iRow = 0; iRow < InputDutyRatio.rows - 1; iRow++)
+		{
+			*InputDutyRatio.ptr<double>(iRow) = InputTextLineDutyRatio[iRow];
+			*TemplateDutyRatio.ptr<double>(iRow) = *TemplateImagePeakRow.ptr<double>(InputTextLineIndex[iRow] + 1);
+		}
+		GetCorrCoef<double>(InputDutyRatio, TemplateDutyRatio, UpDutyRatioCorrCoef);
+	}
+
+	if (*InputTextLineIndex.begin() > 1)
+	{
+		Mat InputDutyRatio
+		(
+			InputTextLineDutyRatio.size(),
+			1,
+			CV_64FC1,
+			Scalar(0.0)
+		);
+		Mat TemplateDutyRatio = InputDutyRatio.clone();
+		for (int iRow = 0; iRow < InputDutyRatio.rows; iRow++)
+		{
+			*InputDutyRatio.ptr<double>(iRow) = InputTextLineDutyRatio[iRow];
+			*TemplateDutyRatio.ptr<double>(iRow) = *TemplateImagePeakRow.ptr<double>(InputTextLineIndex[iRow] - 1);
+		}
+		GetCorrCoef<double>(InputDutyRatio, TemplateDutyRatio, DownDutyRatioCorrCoef);
+	}
+	else
+	{
+		Mat InputDutyRatio
+		(
+			InputTextLineDutyRatio.size() - 1,
+			1,
+			CV_64FC1,
+			Scalar(0.0)
+		);
+		Mat TemplateDutyRatio = InputDutyRatio.clone();
+		for (int iRow = 0; iRow < InputDutyRatio.rows - 1; iRow++)
+		{
+			*InputDutyRatio.ptr<double>(iRow) = InputTextLineDutyRatio[iRow];
+			*TemplateDutyRatio.ptr<double>(iRow) = *TemplateImagePeakRow.ptr<double>(InputTextLineIndex[iRow] - 1);
+		}
+		GetCorrCoef<double>(InputDutyRatio, TemplateDutyRatio, DownDutyRatioCorrCoef);
+	}
+
+
+	if (UpDutyRatioCorrCoef > 0.0  && abs(UpDutyRatioCorrCoef) - abs(DutyRatioCorrCoef) > 0.5)
+	{
+		for (int iTextLine = 0; iTextLine < InputTextLineIndex.size(); iTextLine++)
+		{
+			if (InputTextLineIndex[iTextLine] + 1 < TemplateImagePeakRow.size())
+			{
+				InputTextLineIndex[iTextLine] = InputTextLineIndex[iTextLine] + 1;
+			}
+			else
+			{
+				InputImageTextLineInfo.erase(InputImageTextLineInfo.begin() + iTextLine);
+			}
+
+		}
+
+	}
+	else if (DownDutyRatioCorrCoef > 0.0 && abs(DownDutyRatioCorrCoef) - abs(DutyRatioCorrCoef) > 0.5)
+	{
+		for (int iTextLine = 0; iTextLine < InputTextLineIndex.size(); iTextLine++)
+		{
+			if (InputTextLineIndex[iTextLine] - 1 < 0)
+			{
+				InputTextLineIndex[iTextLine] = InputTextLineIndex[iTextLine] - 1;
+			}
+			else
+			{
+				InputImageTextLineInfo.erase(InputImageTextLineInfo.begin() + iTextLine);
+			}
+
+		}
+	}
+
+
 }
