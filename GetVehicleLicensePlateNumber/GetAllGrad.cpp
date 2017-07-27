@@ -44,15 +44,15 @@ int GetAllGrad(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat,Mat& Outp
 				3 * (InputMat.ptr<InputMatType>(iRow + 1)[iCol + 1] - InputMat.ptr<InputMatType>(iRow - 1)[iCol + 1])
 			);
 
-			OutputGradMatTemp.ptr<float>(iRow)[iCol] = abs(OutputGradXMatTemp.ptr<float>(iRow)[iCol]) + 
-				abs(OutputGradYMatTemp.ptr<float>(iRow)[iCol]);
+			OutputGradMatTemp.ptr<float>(iRow)[iCol] = £¨OutputGradXMatTemp.ptr<float>(iRow)[iCol] + 
+				OutputGradYMatTemp.ptr<float>(iRow)[iCol]£©;
 				
 			);
 		}
 	}
 
-	OutputGradXMat = OutputGradXMatTemp.clone();
-	OutputGradYMat = OutputGradXMatTemp.clone();
-	OutputGradMat = OutputGradMatTemp.clone();
+	OutputGradXMatTemp.convertTo(OutputGradXMat,CV_8UC1,1.0/16.0);
+	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, 1.0 / 16.0);
+	OutputGradMatTemp.convertTo(OutputGradMat, CV_8UC1, 1.0 / 32.0);
 	return 0;
 }

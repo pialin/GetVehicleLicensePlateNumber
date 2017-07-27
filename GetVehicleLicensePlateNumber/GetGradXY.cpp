@@ -4,22 +4,16 @@ int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 {
 	if (InputMat.type() != CV_8UC1 || InputMat.channels() != 1)
 	{
-		ofstream LogStream(LogFilePath, ios::app);
-		time_t CurrentTime;
-		tm CurrentLocalTime;
-		char CurrentTimeString[20];
-		localtime_s(&CurrentLocalTime, &CurrentTime);
-		strftime(CurrentTimeString, sizeof(CurrentTimeString), "[%Y/%m/%d %X]", &CurrentLocalTime);
-		LogStream << CurrentTimeString << "Error:" << endl << "Ilegal input parameter." << endl;
+		AppendLog("Error: Ilegal input parameter.");
 		return 1;
 	}
-	OutputGradXMat = Mat::zeros(
+	Mat OutputGradXMatTemp = Mat::zeros(
 		int(InputMat.rows),
 		int(InputMat.cols),
 		CV_32FC1
 	);
 
-	OutputGradXMat = Mat::zeros(
+	Mat OutputGradYMatTemp = Mat::zeros(
 		int(InputMat.rows),
 		int(InputMat.cols),
 		CV_32FC1
@@ -32,17 +26,25 @@ int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 
 		for (int iCol = 1; iCol < InputMat.cols - 1; iCol++)
 		{
-			OutputGradXMat.ptr<uchar>(iRow)[iCol] = abs(
+			OutputGradXMatTemp.ptr<uchar>(iRow)[iCol] = abs(
 				10 * (InputMat.ptr<uchar>(iRow)[iCol + 1] - InputMat.ptr<uchar>(iRow)[iCol - 1]) +
 				3 * (InputMat.ptr<uchar>(iRow-1)[iCol + 1] - InputMat.ptr<uchar>(iRow-1)[iCol - 1]) +
 				3 * (InputMat.ptr<uchar>(iRow+1)[iCol + 1] - InputMat.ptr<uchar>(iRow+1)[iCol - 1])
 			);
-			OutputGradYMat.ptr<uchar>(iRow)[iCol] = abs(
+			OutputGradYMatTemp.ptr<uchar>(iRow)[iCol] = abs(
 				10 * (InputMat.ptr<uchar>(iRow + 1)[iCol] - InputMat.ptr<uchar>(iRow - 1)[iCol]) +
 				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol - 1] - InputMat.ptr<uchar>(iRow - 1)[iCol - 1]) +
 				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol + 1] - InputMat.ptr<uchar>(iRow - 1)[iCol + 1])
 			);
 		}
 	}
+	float MinValue, MaxValue;
+	minMaxLoc(OutputGradXMatTemp, MinValue, MaxValue);
+	OutputGradXMatTemp.convertTo(OutputGradXMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
+		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+
+	minMaxLoc(OutputGradYMatTemp, MinValue, MaxValue);
+	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
+		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
 	return 0;
 }

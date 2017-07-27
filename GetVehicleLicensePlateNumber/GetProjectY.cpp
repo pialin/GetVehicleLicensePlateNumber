@@ -8,22 +8,26 @@ int GetProjectY(Mat &InputMat, Mat & OutputMat)
 		return 1;
 	}
 
-	OutputMat = Mat::zeros(
+	Mat OutputMatTemp = Mat::zeros(
 		1,
 		int(InputMat.rows),
-		CV_8UC1
+		CV_32FC1
 	);
-	double SumTemp;
 	for (int iCol = 0; iCol < InputMat.cols; iCol++)
 	{
-		SumTemp = 0;
+
 		//叠加同一行每一列的梯度值
 		for (int iRow = 0; iRow < InputMat.rows; iRow++)
 		{
-			SumTemp  = SumTemp + InputMat.ptr<InputMatType>(iRow)[iCol];
+			OutputMatTemp.ptr<float>(0)[iCol] = OutputMatTemp.ptr<float>(0)[iCol] +
+				InputMat.ptr<InputMatType>(iRow)[iCol];
 		}
-		OutputMat.ptr<uchar>(0)[iCol] = SumTemp / InputMat.rows;
+		
 			
 	}
+	float MinValue, MaxValue;
+	minMaxLoc(OutputMatTemp, MinValue, MaxValue);
+	OutputMatTemp.convertTo(OutputMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
+		-1.0*MinValue*(MaxValue - MinValue) / 255.0);
 	return 0;
 }
