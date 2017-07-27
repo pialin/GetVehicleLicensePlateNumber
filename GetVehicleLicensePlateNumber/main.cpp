@@ -83,9 +83,8 @@ int main(int ArgumentCount, char** ArgumentVector)
 				}
 			}
 
-			
 			TitleCol2PlateNumberArea(TitleStartCol, TitleEndCol, PlateNumberLineInfo, InputImagePlateNumberAreaRect);
-			InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect & Rect(0, 0, InputImageHeight, InputImageWidth);
+			
 
 		}
 		else if ((*InputImageTextLineInfo.begin()).TextLineIndex == 1)
@@ -97,6 +96,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 			GetPlateNumberLineCol(PlateNumberLineGrad, PlateNumberLineInfo, TitleStartCol, TitleEndCol);
 			PlateNumberLineCol2PlateNumberArea();
 		}
+
+		InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect & Rect(0, 0, InputImageHeight, InputImageWidth);
+		PlateNumberAreaGradX = InputImage_InputGradX(InputImagePlateNumberAreaRect);
 
 	}
 
