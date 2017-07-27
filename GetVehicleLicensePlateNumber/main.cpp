@@ -2,6 +2,7 @@
 int main(int ArgumentCount, char** ArgumentVector)
 {
 
+	PrepareTemplateImage();
 	String  InputImagePathGlobExpression = ArgumentVector[1];
 
 	//创建用于存储图片路径的String数组
@@ -13,6 +14,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 		InputImagePathList, //输出图像文件列表
 		false//不进行递归，即不对子文件夹进行搜索
 	);
+
 
 	for (int iInputImagePath = 0; iInputImagePath < InputImagePathList.size(); iInputImagePath++)
 	{
