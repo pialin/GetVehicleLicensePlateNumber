@@ -75,3 +75,11 @@ const extern char LogFilePath[] = "E:\\Git\\GetVehicleLicensePlateNumber\\"\
 	 vector <TextLineInfo>  InputImageTextLineInfo,
 	 double ClosestMatchScale
  );
+
+ int GetTitleCol
+ (
+	 Mat & TitleLineGrad,
+	 TextLineInfo TitleLineInfo,
+	 int TitleStartCol,
+	 int TitleEndCol
+ );

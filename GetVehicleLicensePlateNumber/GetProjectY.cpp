@@ -11,18 +11,19 @@ int GetProjectY(Mat &InputMat, Mat & OutputMat)
 	OutputMat = Mat::zeros(
 		1,
 		int(InputMat.rows),
-		CV_32FC1
+		CV_8UC1
 	);
-
+	double SumTemp;
 	for (int iCol = 0; iCol < InputMat.cols; iCol++)
 	{
+		SumTemp = 0;
 		//叠加同一行每一列的梯度值
 		for (int iRow = 0; iRow < InputMat.rows; iRow++)
 		{
-			OutputMat.ptr<float>(0)[iCol] = OutputMat.ptr<float>(0)[iCol] +
-				InputMat.ptr<InputMatType>(iRow)[iCol];
+			SumTemp  = SumTemp + InputMat.ptr<InputMatType>(iRow)[iCol];
 		}
-
+		OutputMat.ptr<uchar>(0)[iCol] = SumTemp / InputMat.rows;
+			
 	}
 	return 0;
 }

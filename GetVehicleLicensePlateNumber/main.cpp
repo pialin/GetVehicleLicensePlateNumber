@@ -60,9 +60,42 @@ int main(int ArgumentCount, char** ArgumentVector)
 		if ((*InputImageTextLineInfo.begin()).TextLineIndex == 0)
 		{
 			TextLineInfo TitleLineInfo = *InputImageTextLineInfo.begin();
-			Mat TitleLineGradX = InputImage_InputGradX.rowRange(TitleLineInfo.StartRow,
+			Mat TitleLineGrad = InputImage_InputGrad.rowRange(TitleLineInfo.StartRow,
 				TitleLineInfo.EndRow);
+			int TitleStartCol, TitleEndCol;
+			double TitleDutyRatio;
+			GetTitleCol(TitleLineGrad,TitleLineInfo, TitleStartCol, TitleEndCol,TitleDutyRatio);
+			TextLineInfo PlateNumberLineInfo = InputImageTextLineInfo[1]; 
+			if (TitleDutyRatio < 0.5)
+			{	
+				TextLineInfo TitleLineInfoTemp = InputImageTextLineInfo[1];
+				Mat TitleLineGradTemp = InputImage_InputGrad.rowRange(TitleLineInfoTemp.StartRow,
+					TitleLineInfoTemp.EndRow);
+				int TitleStartColTemp, TitleEndColTemp;
+				double TitleDutyRatioTemp;
+				GetTitleCol(TitleLineGradTemp, TitleLineInfoTemp, TitleStartColTemp, TitleEndColTemp, TitleDutyRatioTemp);
+				if (TitleDutyRatioTemp > 0.8)
+				{
+					TitleLineInfo = TitleLineInfoTemp;
+					TitleStartCol = TitleStartColTemp;
+					TitleEndCol = TitleEndColTemp;
+					PlateNumberLineInfo = InputImageTextLineInfo[2];
+				}
+			}
 
+			
+			TitleCol2PlateNumberArea(TitleStartCol, TitleEndCol, PlateNumberLineInfo, InputImagePlateNumberAreaRect);
+			InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect & Rect(0, 0, InputImageHeight, InputImageWidth);
+
+		}
+		else if ((*InputImageTextLineInfo.begin()).TextLineIndex == 1)
+		{
+			TextLineInfo PlateNumberLineInfo = *InputImageTextLineInfo.begin();
+			Mat PlateNumberLineGrad = InputImage_InputGrad.rowRange(PlateNumberLineInfo.StartRow,
+				PlateNumberLineInfo.EndRow);
+			int TitleStartCol, TitleEndCol;
+			GetPlateNumberLineCol(PlateNumberLineGrad, PlateNumberLineInfo, TitleStartCol, TitleEndCol);
+			PlateNumberLineCol2PlateNumberArea();
 		}
 
 	}
