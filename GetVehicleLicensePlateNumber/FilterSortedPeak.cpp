@@ -1,7 +1,10 @@
 #include "main.h"
-int FilterSortedPeak(vector<PeakInfo> &InputPeakInfo,
+int FilterSortedPeak
+(
+	vector<PeakInfo> InputPeakInfo,
 	double MinPeakGap,
-	vector<PeakInfo> & OutputPeakInfo)
+	vector<PeakInfo> & OutputPeakInfo
+)
 {
 	bool FlagKeepCurrentPeak;
 	vector<PeakInfo>  OutputPeakInfoTemp;

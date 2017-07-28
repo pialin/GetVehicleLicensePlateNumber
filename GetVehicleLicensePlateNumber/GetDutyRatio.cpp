@@ -1,6 +1,10 @@
 #include "main.h"
 template <typename InputMatType>
-int GetDutyRatio(Mat &InputMat, double & DutyRatio)
+int GetDutyRatio
+(
+	Mat InputMat, 
+	double & DutyRatio
+)
 {
 	if (InputMat.channels() != 1 ||
 		InputMat.rows != 1 && InputMat.cols != 1)
@@ -11,7 +15,7 @@ int GetDutyRatio(Mat &InputMat, double & DutyRatio)
 
 
 	double SumTemp = 0.0;
-	
+	double OneValue;
 	if (InputMat.cols == 1)
 	{
 		for (int iRow = 0; iRow < InputMat.rows; iRow++)
@@ -19,7 +23,16 @@ int GetDutyRatio(Mat &InputMat, double & DutyRatio)
 			SumTemp = SumTemp + *InputMat.ptr<InputMatType>(iRow);
 			
 		}
-		DutyRatio = SumTemp / InputMat.rows / *InputMat.ptr<InputMatType>(0);
+		for (int iRow = 0; iRow < InputMat.rows; iRow++)
+		{
+			if (*InputMat.ptr<InputMatType>(iRow) > 0)
+			{
+				OneValue = *InputMat.ptr<InputMatType>(iRow);
+				break;
+			}
+
+		}
+		DutyRatio = SumTemp / InputMat.rows / OneValue;
 	}
 	else
 	{
@@ -27,7 +40,17 @@ int GetDutyRatio(Mat &InputMat, double & DutyRatio)
 		{
 			SumTemp = SumTemp + InputMat.ptr<InputMatType>[0](iCol);
 		}
-		DutyRatio = SumTemp / InputMat.cols/ InputMat.ptr<InputMatType>[0](iCol);
+
+		for (int iCol = 0; iCol < InputMat.cols; iCol++)
+		{
+			if (InputMat.ptr<InputMatType>[0](iCol) > 0)
+			{
+				OneValue = InputMat.ptr<InputMatType>[0](iCol);
+				break;
+			}
+
+		}
+		DutyRatio = SumTemp / InputMat.cols/ OneValue;
 	
 	}
 

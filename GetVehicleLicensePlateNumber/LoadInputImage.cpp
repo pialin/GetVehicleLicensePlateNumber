@@ -2,7 +2,7 @@
 int LoadInputImage
 (
 	String InputImagePath,//输入图片的读取路径
-	Mat Gray_InputImage
+	Mat & Gray_InputImage
 )
 {
 	if (InputImagePath.empty())
@@ -19,21 +19,19 @@ int LoadInputImage
 
 	if (!InputImage.data)
 	{
-		AppendLog("Error: Can't read image data from '" + InputImagePath +
-			"'. This item would be skipped.");
+		AppendLog("Error: Can't read image data from '" + InputImagePath + ".");
 		return 1;
 	}
 
 	Rect InputImageRect = { 0, 0, InputImage.rows, InputImage.cols };
 
-	int ImagePathSuffixSep = InputImagePath.rfind('.');
-	String XmlFilePath = InputImagePath.substr(0, ImagePathSuffixSep) + ".xml";
+	String XmlFilePath = InputImagePath.substr(0, InputImagePath.rfind('.')) + ".xml";
 	Rect RectOfInterest;
 
 	LoadRectOfInterest(XmlFilePath, RectOfInterest);
 
 
-	if ((RectOfInterest & InputImageRect).area == 0)
+	if ((RectOfInterest & InputImageRect).area() == 0)
 	{
 		AppendLog("Warning: RectOfInterest may not be an proper range and would be ignore."\
 			"The whole image would be processed.");

@@ -1,6 +1,11 @@
 #include "main.h"
 template <typename InputMatType>
-int GetCorrCoef(Mat &InputMatA, Mat & InputMatB, double & CorrCoef)
+int GetCorrCoef
+(
+	Mat InputMatA, 
+	Mat InputMatB, 
+	double & CorrCoef
+)
 {
 	if (InputMatA.channels() != 1 ||
 		InputMatA.rows != 1 && InputMatA.cols != 1 ||

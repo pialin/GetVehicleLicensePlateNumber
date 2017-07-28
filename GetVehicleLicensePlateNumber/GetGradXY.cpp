@@ -1,8 +1,13 @@
 #include "main.h"
-
-int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
+template <typename InputMatType>
+int GetGradXY
+(
+	Mat InputMat, 
+	Mat& OutputGradXMat, 
+	Mat& OutputGradYMat
+)
 {
-	if (InputMat.type() != CV_8UC1 || InputMat.channels() != 1)
+	if (InputMat.channels() != 1)
 	{
 		AppendLog("Error: Ilegal input parameter.");
 		return 1;
@@ -26,15 +31,15 @@ int GetGradXY(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat)
 
 		for (int iCol = 1; iCol < InputMat.cols - 1; iCol++)
 		{
-			OutputGradXMatTemp.ptr<uchar>(iRow)[iCol] = abs(
-				10 * (InputMat.ptr<uchar>(iRow)[iCol + 1] - InputMat.ptr<uchar>(iRow)[iCol - 1]) +
-				3 * (InputMat.ptr<uchar>(iRow-1)[iCol + 1] - InputMat.ptr<uchar>(iRow-1)[iCol - 1]) +
-				3 * (InputMat.ptr<uchar>(iRow+1)[iCol + 1] - InputMat.ptr<uchar>(iRow+1)[iCol - 1])
+			OutputGradXMatTemp.ptr<float>(iRow)[iCol] = abs(
+				10 * (InputMat.ptr<InputMatType>(iRow)[iCol + 1] - InputMat.ptr<InputMatType>(iRow)[iCol - 1]) +
+				3 * (InputMat.ptr<InputMatType>(iRow-1)[iCol + 1] - InputMat.ptr<InputMatType>(iRow-1)[iCol - 1]) +
+				3 * (InputMat.ptr<InputMatType>(iRow+1)[iCol + 1] - InputMat.ptr<InputMatType>(iRow+1)[iCol - 1])
 			);
-			OutputGradYMatTemp.ptr<uchar>(iRow)[iCol] = abs(
-				10 * (InputMat.ptr<uchar>(iRow + 1)[iCol] - InputMat.ptr<uchar>(iRow - 1)[iCol]) +
-				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol - 1] - InputMat.ptr<uchar>(iRow - 1)[iCol - 1]) +
-				3 * (InputMat.ptr<uchar>(iRow + 1)[iCol + 1] - InputMat.ptr<uchar>(iRow - 1)[iCol + 1])
+			OutputGradYMatTemp.ptr<float>(iRow)[iCol] = abs(
+				10 * (InputMat.ptr<InputMatType>(iRow + 1)[iCol] - InputMat.ptr<InputMatType>(iRow - 1)[iCol]) +
+				3 * (InputMat.ptr<InputMatType>(iRow + 1)[iCol - 1] - InputMat.ptr<InputMatType>(iRow - 1)[iCol - 1]) +
+				3 * (InputMat.ptr<InputMatType>(iRow + 1)[iCol + 1] - InputMat.ptr<InputMatType>(iRow - 1)[iCol + 1])
 			);
 		}
 	}

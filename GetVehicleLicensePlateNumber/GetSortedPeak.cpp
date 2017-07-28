@@ -1,6 +1,10 @@
 #include "main.h"
 template <typename InputMatType>
-int GetSortedPeak(Mat & InputMat, vector<PeakInfo> &OutputPeakInfo)
+int GetSortedPeak
+(
+	Mat InputMat, 
+	vector<PeakInfo> &OutputPeakInfo
+)
 {
 	PeakInfo PeakInfoTemp;
 	if (InputMat.cols == 1 && InputMat.channels == 1)

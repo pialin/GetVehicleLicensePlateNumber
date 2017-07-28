@@ -1,6 +1,10 @@
 #include "main.h"
 template <typename InputMatType>
-int GetProjectY(Mat &InputMat, Mat & OutputMat)
+int GetProjectY
+(
+	Mat InputMat, 
+	Mat & OutputMat
+)
 {
 	if (InputMat.channels() != 1)
 	{

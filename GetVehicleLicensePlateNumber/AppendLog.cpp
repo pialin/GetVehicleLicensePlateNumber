@@ -1,6 +1,7 @@
 #include "main.h"
 int AppendLog(String LogInfo)
 {
+	char LogFilePath[] = ".\\Log.txt";
 	ofstream LogStream(LogFilePath, ios::app);
 	time_t CurrentTime;
 	tm CurrentLocalTime;
@@ -10,4 +11,5 @@ int AppendLog(String LogInfo)
 	LogStream << CurrentTimeString << __FUNCTION__  << "("  << __LINE__ << ")" << endl <<
 		LogInfo << endl;
 	LogStream.close();
+	return 0;
 }

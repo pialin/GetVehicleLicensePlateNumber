@@ -1,6 +1,12 @@
 #include "main.h"
 template <typename InputMatType>
-int GetAllGrad(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat,Mat& OutputGradMat)
+int GetAllGrad
+(
+	Mat InputMat, 
+	Mat& OutputGradXMat, 
+	Mat& OutputGradYMat,
+	Mat& OutputGradMat
+)
 {
 
 	if ( InputMat.channels() != 1)
@@ -46,8 +52,6 @@ int GetAllGrad(Mat& InputMat, Mat& OutputGradXMat, Mat& OutputGradYMat,Mat& Outp
 
 			OutputGradMatTemp.ptr<float>(iRow)[iCol] = £¨OutputGradXMatTemp.ptr<float>(iRow)[iCol] + 
 				OutputGradYMatTemp.ptr<float>(iRow)[iCol]£©;
-				
-			);
 		}
 	}
 

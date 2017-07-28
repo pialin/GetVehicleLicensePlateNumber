@@ -1,11 +1,13 @@
 #include "main.h"
 int PlateNumberArea2PlateNumber
 (
-	Mat & PlateNumberAreaGradX,
-	TextLineInfo PlateNumberLineInfo,
-	Rect PlateNumberRect
-)
+	Mat  PlateNumberAreaGradX,
+	TextLineInfo  PlateNumberLineInfo,
+	double  EstimatePlateNumberHeight,
+	Size  TemplateImagePlateNumberSize,
 
+	Rect & PlateNumberRect
+)
 {
 	Mat ProjectX_PlateNumberAreaGradX;
 
@@ -19,13 +21,9 @@ int PlateNumberArea2PlateNumber
 		1, //最大值（超过阈值将设为此值）
 		CV_THRESH_OTSU //阈值化选择的方法:Otsu法
 	);
+	ProjectX_Binary_PlateNumberAreaGradX.convertTo(ProjectX_Binary_PlateNumberAreaGradX, CV_8UC1);
 
-
-	double  EstimatePlateNumberHeight =  double(PlateNumberLineInfo.TextLineHeight
-		/ double(TemplateImagePlateNumberLineHeight)*double(TemplateImagePlateNumberHeight);
-
-
-	int MatchStartRow,MatchEndRow;
+	
 	int PlateNumberStartRow, PlateNumberEndRow;
 
 	if (ProjectX_Binary_PlateNumberAreaGradX.rows <= EstimatePlateNumberHeight)
@@ -35,9 +33,7 @@ int PlateNumberArea2PlateNumber
 	}
 	else
 	{
-		MatchStartRow = 0;
-		MatchEndRow = MatchStartRow + EstimatePlateNumberHeight;
-
+		int MatchStartRow= 0,MatchEndRow= int(MatchStartRow + EstimatePlateNumberHeight);
 		vector <int> NumPlateNumberOne;
 		NumPlateNumberOne.push_back(0);
 
@@ -107,7 +103,7 @@ int PlateNumberArea2PlateNumber
 	);
 
 	double  EstimatePlateNumberWidth = double(PlateNumberEndRow - PlateNumberStartRow) /
-		double(TemplateImagePlateNumberHeight)*double(TemplateImagePlateNumberWidth);
+		double(TemplateImagePlateNumberSize.height)*double(TemplateImagePlateNumberSize.width);
 
 	double EstimatePlateNumberCharWidth = EstimatePlateNumberWidth / 7.5;
 
@@ -145,7 +141,7 @@ int PlateNumberArea2PlateNumber
 	else
 	{
 		MatchStartCol = 0;
-		MatchEndCol = MatchStartCol + EstimatePlateNumberWidth + ElementSize - 1;
+		MatchEndCol = int(MatchStartCol + EstimatePlateNumberWidth + ElementSize - 1);
 
 		vector <int> NumPlateNumberOne;
 		NumPlateNumberOne.push_back(0);
@@ -205,11 +201,23 @@ int PlateNumberArea2PlateNumber
 	PlateNumberStartCol = PlateNumberStartCol + int(EstimatePlateNumberCharWidth / 2);
 	PlateNumberEndCol = PlateNumberEndCol - int(EstimatePlateNumberCharWidth / 2);
 
+	if ((PlateNumberEndCol - PlateNumberStartCol)/EstimatePlateNumberWidth <0.8)
+	{
+		if ((PlateNumberStartCol + PlateNumberEndCol)/2.0 < PlateNumberAreaGradX.cols/2.0)
+		{
+			PlateNumberStartCol = int(PlateNumberEndCol - EstimatePlateNumberWidth);
+		}
+		else
+		{
+			PlateNumberEndCol = int(PlateNumberStartCol +  EstimatePlateNumberWidth);
+		}
+		
+	}
 
 	PlateNumberRect.x = PlateNumberStartCol;
 	PlateNumberRect.y = PlateNumberStartRow;
 	PlateNumberRect.width = PlateNumberEndCol - PlateNumberStartCol;
-	PlateNumberRect.y = PlateNumberEndRow - PlateNumberStartRow;
+	PlateNumberRect.height = PlateNumberEndRow - PlateNumberStartRow;
 
-
+	return 0;
 }

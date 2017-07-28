@@ -1,5 +1,9 @@
 #include "main.h"
-int LoadRectOfInterest(String InputXmlFilePath,Rect OutputRectOfInterest)
+int LoadRectOfInterest
+(
+	String InputXmlFilePath,
+	Rect & OutputRectOfInterest
+)
 {
 	ifstream XmlFileStream(InputXmlFilePath);
 	if (!XmlFileStream)
