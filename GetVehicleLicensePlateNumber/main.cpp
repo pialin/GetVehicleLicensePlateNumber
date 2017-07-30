@@ -135,9 +135,9 @@ int LoadRectOfInterest
 
 
 
-int LoadInputImage
+int Raw2GrayImage
 (
-	String InputImagePath,//输入图片的读取路径
+	Mat Raw_InputImage,//输入图片的读取路径
 	Mat & Gray_InputImage
 );
 
@@ -269,11 +269,45 @@ int main(int ArgumentCount, char** ArgumentVector)
 
 	for (int iInputImagePath = 0; iInputImagePath < InputImagePathList.size(); iInputImagePath++)
 	{
+
+		Mat Raw_InputImage = imread(
+			InputImagePathList[iInputImagePath],
+			CV_LOAD_IMAGE_UNCHANGED
+		);
+
+		if (!Raw_InputImage.data)
+		{
+			AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" +
+				"Error: Can't read image data from '" + InputImagePathList[iInputImagePath] + ".");
+			return 1;
+		}
+
+		Rect RectOfInterest;
+		String XmlFilePath = InputImagePathList[iInputImagePath].substr
+		(0, InputImagePathList[iInputImagePath].rfind('.')) + ".xml";
+		LoadRectOfInterest(XmlFilePath, RectOfInterest);
+
+		Rect InputImageRect = { 0, 0, Raw_InputImage.rows, Raw_InputImage.cols };
+
+		if ((RectOfInterest & InputImageRect).area() == 0)
+		{
+			AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" +
+				"Warning: RectOfInterest may not be an proper range and would be ignore."\
+				"The whole image would be processed.");
+			RectOfInterest = InputImageRect;
+		}
+		else
+		{
+			Raw_InputImage = Raw_InputImage(RectOfInterest);
+		}
+
+		
+
 		Mat Gray_InputImage;
 
-		LoadInputImage(InputImagePathList[iInputImagePath], Gray_InputImage);
+		Raw2GrayImage(Raw_InputImage, Gray_InputImage);
 
-		Size InputImageSize(Gray_InputImage.rows, Gray_InputImage.cols);
+		Size InputImageSize(Gray_InputImage.cols,Gray_InputImage.rows);
 
 
 		//创建矩阵用于存放图像Y方向的梯度值
@@ -315,6 +349,17 @@ int main(int ArgumentCount, char** ArgumentVector)
 			InputImageScaleY
 		);
 
+		for (int iTextLine = 0; iTextLine < InputImageTextLineInfo.size(); iTextLine++)
+		{
+			if (InputImageTextLineInfo[iTextLine].TextLineIndex == 0)
+			{
+				Raw_InputImage.row(InputImageTextLineInfo[iTextLine].StartRow) = Scalar(0, 0, 255);
+			}
+			else
+			{
+				Raw_InputImage.row(InputImageTextLineInfo[iTextLine].StartRow) = Scalar(255, 0, 0);
+			}
+		}
 
 		double InputImageScaleX;
 		Rect InputImagePlateNumberAreaRect;
@@ -324,11 +369,11 @@ int main(int ArgumentCount, char** ArgumentVector)
 		{
 			InputImageTitleLineInfo = *InputImageTextLineInfo.begin();
 
-			Mat InputImageTitleLineGrad = InputImage_InputGrad.rowRange(InputImageTitleLineInfo.StartRow,
+			Mat InputImageTitleLineGrad = InputImage_InputGradX.rowRange(InputImageTitleLineInfo.StartRow,
 				InputImageTitleLineInfo.EndRow);
 
 			double  EstimateInputImageTitleWidth = double(InputImageTitleLineInfo.TextLineHeight) /
-				double(TemplateImageLineRow[1] - TemplateImageLineRow[0])*double(TemplateImageSize.width);
+				double(TemplateImageLineRow[1] - TemplateImageLineRow[0])*double(TemplateImageTitleRect.width);
 
 			Rect InputImageTitleRect;
 
@@ -344,6 +389,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 				InputImageTitleDutyRatio
 			);
 
+			rectangle(
+				Raw_InputImage,
+				InputImageTitleRect.tl(),
+				InputImageTitleRect.br(),
+				Scalar(255, 0, 0),
+				1,
+				LINE_AA,
+				0);
 			InputImagePlateNumberLineInfo = InputImageTextLineInfo[1];
 
 			if (InputImageTitleDutyRatio < 0.5)
@@ -385,6 +438,18 @@ int main(int ArgumentCount, char** ArgumentVector)
 				InputImageScaleX,
 				InputImagePlateNumberAreaRect
 			);
+			InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect &
+				Rect(0, 0, InputImageSize.width, InputImageSize.height);
+
+			rectangle(
+				Raw_InputImage,
+				InputImagePlateNumberAreaRect.tl(),
+				InputImagePlateNumberAreaRect.br(),
+				Scalar(255, 0, 0),
+				1,
+				LINE_AA,
+				0);
+
 		}
 		else if ((*InputImageTextLineInfo.begin()).TextLineIndex == 1)
 		{
@@ -407,6 +472,14 @@ int main(int ArgumentCount, char** ArgumentVector)
 				InputImagePlateNumberLineDutyRatio
 			);
 
+			rectangle(
+				Raw_InputImage,
+				InputImagePlateNumberLineRect.tl(),
+				InputImagePlateNumberLineRect.br(),
+				Scalar(255, 0, 0),
+				1,
+				LINE_AA,
+				0);
 
 			PlateNumberLineRect2PlateNumberAreaRect
 			(
@@ -421,10 +494,20 @@ int main(int ArgumentCount, char** ArgumentVector)
 				InputImageScaleX,
 				InputImagePlateNumberAreaRect
 			);
+			InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect &
+				Rect(0, 0, InputImageSize.width, InputImageSize.height);
+
+			rectangle(
+				Raw_InputImage,
+				InputImagePlateNumberAreaRect.tl(),
+				InputImagePlateNumberAreaRect.br(),
+				Scalar(255, 0, 0),
+				1,
+				LINE_AA,
+				0);
 		}
 
-		InputImagePlateNumberAreaRect = InputImagePlateNumberAreaRect & Rect(0, 0, InputImageSize.height, InputImageSize.width);
-
+		
 		Mat InputImagePlateNumberAreaGradX = InputImage_InputGradX(InputImagePlateNumberAreaRect);
 
 		Rect InputImagePlateNumberRect;
@@ -442,8 +525,33 @@ int main(int ArgumentCount, char** ArgumentVector)
 			InputImagePlateNumberRect
 		);
 
+		InputImagePlateNumberRect.x = InputImagePlateNumberAreaRect.x + InputImagePlateNumberRect.x;
+		InputImagePlateNumberRect.y = InputImagePlateNumberAreaRect.y + InputImagePlateNumberRect.y;
+
+		rectangle(
+			Raw_InputImage,
+			InputImagePlateNumberRect.tl(),
+			InputImagePlateNumberRect.br(),
+			Scalar(0, 0, 255),
+			1,
+			LINE_AA,
+			0);
+
+		String OutputPath = ArgumentVector[2];
+
+		//寻找文件路径最后一个“\”
+		size_t SepPos = InputImagePathList[iInputImagePath].rfind('\\');//rfind 反向查找
+												   //获取文件夹路径
+		string FolderPath = InputImagePathList[iInputImagePath].substr(0, SepPos);
+		//获取图片文件名
+		string ImageFileName = InputImagePathList[iInputImagePath].substr(SepPos + 1, -1);
+		//获取输出图片保存路径（文件名为输入图像名称前面加上“Result_”）
+		string OutputImagePath = OutputPath + "Result_" + ImageFileName;
+		//进行图像保存
+		imwrite(OutputImagePath, Raw_InputImage);
 	}
 
+	return 0;
 }
 
 template <typename InputMatType>
@@ -455,31 +563,28 @@ int GetProjectY
 {
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 
 	Mat OutputMatTemp = Mat::zeros(
 		1,
-		int(InputMat.rows),
-		CV_32FC1
+		int(InputMat.cols),
+		CV_32SC1
 	);
 	for (int iCol = 0; iCol < InputMat.cols; iCol++)
 	{
-
-		//叠加同一行每一列的梯度值
 		for (int iRow = 0; iRow < InputMat.rows; iRow++)
 		{
-			OutputMatTemp.ptr<float>(0)[iCol] = OutputMatTemp.ptr<float>(0)[iCol] +
+			OutputMatTemp.ptr<int>(0)[iCol] = OutputMatTemp.ptr<int>(0)[iCol] +
 				InputMat.ptr<InputMatType>(iRow)[iCol];
 		}
-
-
 	}
 	double MinValue, MaxValue;
 	minMaxLoc(OutputMatTemp, &MinValue, &MaxValue);
-	OutputMatTemp.convertTo(OutputMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue*(MaxValue - MinValue) / 255.0);
+	OutputMatTemp.convertTo(OutputMat, CV_8UC1, 255.0 / (MaxValue - MinValue) ,
+		-1.0*MinValue* 255.0 / (MaxValue - MinValue) );
 	return 0;
 }
 
@@ -510,7 +615,7 @@ int FilterSortedPeak
 )
 {
 	bool FlagKeepCurrentPeak;
-	vector<PeakInfo>  OutputPeakInfoTemp;
+	OutputPeakInfo.swap(vector <PeakInfo>());
 	for (int iPeak = 0; iPeak < InputPeakInfo.size(); iPeak++)
 	{
 		FlagKeepCurrentPeak = true;
@@ -525,10 +630,9 @@ int FilterSortedPeak
 		}
 		if (FlagKeepCurrentPeak == true)
 		{
-			OutputPeakInfoTemp.push_back(InputPeakInfo[iPeak]);
+			OutputPeakInfo.push_back(InputPeakInfo[iPeak]);
 		}
 	}
-	OutputPeakInfo = OutputPeakInfoTemp;
 	return 0;
 }
 
@@ -545,7 +649,8 @@ int GetAllGrad
 
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 	Mat OutputGradXMatTemp = Mat::zeros(
@@ -610,7 +715,8 @@ int GetCorrCoef
 		InputMatA.rows != InputMatB.rows ||
 		InputMatA.cols != InputMatB.cols)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 
@@ -671,32 +777,39 @@ int GetDiff
 )
 {
 	Mat  OutputMatTemp;
-	if (InputMat.channels() != 1)
+	if (InputMat.channels() != 1 && InputMat.rows != 1 && InputMat.cols != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 
 	OutputMatTemp = Mat::zeros(
 		int(InputMat.rows),
 		int(InputMat.cols),
-		CV_32FC1
+		CV_32SC1
 	);
 
-	for (int iRow = 0; iRow < InputMat.rows; iRow++)
+	if (InputMat.cols == 1)
 	{
-		//叠加同一行每一列的梯度值
-		for (int iCol = 1; iCol < InputMat.cols; iCol++)
+		for (int iRow = 0; iRow < InputMat.rows-1; iRow++)
 		{
-			OutputMatTemp.ptr<float>(iRow)[iCol] = InputMat.ptr<InputMatType>(iRow)[iCol] - InputMat.ptr<float>(iRow)[iCol - 1];
+			*OutputMatTemp.ptr<int>(iRow) = *InputMat.ptr<InputMatType>(iRow+1) - 
+				*InputMat.ptr<InputMatType>(iRow);
 		}
-
 	}
-
+	else if (InputMat.rows == 1)
+	{
+		for (int iCol = 0; iCol < InputMat.cols - 1; iCol++)
+		{
+			OutputMatTemp.ptr<int>(0)[iCol] = InputMat.ptr<InputMatType>(0)[iCol+1] -
+				InputMat.ptr<InputMatType>(0)[iCol];
+		}
+	}
 	double MinValue, MaxValue;
 	minMaxLoc(OutputMatTemp, &MinValue, &MaxValue);
-	OutputMatTemp.convertTo(OutputMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+	OutputMatTemp.convertTo(OutputMat, CV_8UC1,  255.0 / (MaxValue - MinValue),
+		-1.0*MinValue* 255.0 /(MaxValue - MinValue));
 	return 0;
 
 }
@@ -713,7 +826,8 @@ int GetDutyRatio
 	if (InputMat.channels() != 1 ||
 		InputMat.rows != 1 && InputMat.cols != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 
@@ -774,7 +888,8 @@ int GetGradX
 {
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 	Mat OutputGradXMatTemp = Mat::zeros(
@@ -802,8 +917,8 @@ int GetGradX
 
 	double MinValue, MaxValue;
 	minMaxLoc(OutputGradXMatTemp, & MinValue, & MaxValue);
-	OutputGradXMatTemp.convertTo(OutputGradXMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+	OutputGradXMatTemp.convertTo(OutputGradXMat, CV_8UC1, 255.0/(MaxValue - MinValue) ,
+		-1.0*MinValue*255.0 / (MaxValue - MinValue) );
 	return 0;
 }
 
@@ -818,7 +933,8 @@ int GetGradXY
 {
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 	Mat OutputGradXMatTemp = Mat::zeros(
@@ -854,12 +970,12 @@ int GetGradXY
 	}
 	double MinValue, MaxValue;
 	minMaxLoc(OutputGradXMatTemp, & MinValue, & MaxValue);
-	OutputGradXMatTemp.convertTo(OutputGradXMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
+	OutputGradXMatTemp.convertTo(OutputGradXMat, CV_8UC1, 255.0/(MaxValue - MinValue) ,
 		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
 
 	minMaxLoc(OutputGradYMatTemp, & MinValue, & MaxValue);
-	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, 255/(MaxValue - MinValue),
+		-1.0*MinValue* 255.0/(MaxValue - MinValue) );
 	return 0;
 }
 
@@ -873,7 +989,8 @@ int GetGradY
 {
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 	Mat OutputGradYMatTemp = Mat::zeros(
@@ -900,8 +1017,8 @@ int GetGradY
 	}
 	double MinValue, MaxValue;
 	minMaxLoc(OutputGradYMatTemp, &MinValue, &MaxValue);
-	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+	OutputGradYMatTemp.convertTo(OutputGradYMat, CV_8UC1, 255.0 /(MaxValue - MinValue) ,
+		-1.0*MinValue* 255.0/(MaxValue - MinValue));
 	return 0;
 }
 
@@ -915,7 +1032,8 @@ int GetProjectX
 {
 	if (InputMat.channels() != 1)
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 
@@ -939,8 +1057,8 @@ int GetProjectX
 	}
 	double MinValue, MaxValue;
 	minMaxLoc(OutputMatTemp, &MinValue, &MaxValue);
-	OutputMatTemp.convertTo(OutputMat, CV_8UC1, (MaxValue - MinValue) / 255.0,
-		-1.0*MinValue* (MaxValue - MinValue) / 255.0);
+	OutputMatTemp.convertTo(OutputMat, CV_8UC1, 255.0 /(MaxValue - MinValue) ,
+		-1.0*MinValue*  255.0 /(MaxValue - MinValue));
 	return 0;
 }
 
@@ -964,10 +1082,7 @@ int GetSortedPeak
 		{
 			PeakInfoTemp.PeakIndex = iRow;
 			PeakInfoTemp.PeakAmp = *InputMat.ptr<InputMatType>(iRow);
-			if (PeakInfoTemp.PeakAmp > 0)
-			{
 				OutputPeakInfo.push_back(PeakInfoTemp);
-			}
 		}
 	}
 
@@ -977,15 +1092,13 @@ int GetSortedPeak
 		{
 			PeakInfoTemp.PeakIndex = iCol;
 			PeakInfoTemp.PeakAmp = InputMat.ptr<InputMatType>(0)[iCol];
-			if (PeakInfoTemp.PeakAmp >0)
-			{
-				OutputPeakInfo.push_back(PeakInfoTemp);
-			}
+			OutputPeakInfo.push_back(PeakInfoTemp);
 		}
 	}
 	else
 	{
-		AppendLog("Error: Ilegal input parameter.");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Ilegal input parameter.");
 		return 1;
 	}
 	sort(OutputPeakInfo.begin(),
@@ -1006,7 +1119,8 @@ int LoadRectOfInterest
 	ifstream XmlFileStream(InputXmlFilePath);
 	if (!XmlFileStream)
 	{
-		AppendLog("Error: Can't find xml file:" + InputXmlFilePath + ".");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Can't find xml file:" + InputXmlFilePath + ".");
 		return 1;
 	}
 
@@ -1017,7 +1131,8 @@ int LoadRectOfInterest
 	bool IsRectOfInterestFound = false;
 	if (LabelElement == nullptr)
 	{
-		AppendLog("Error: Can't find  'annotation' node of  xml file:" + InputXmlFilePath + ".");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Can't find  'annotation' node of  xml file:" + InputXmlFilePath + ".");
 		return 1;
 	}
 	else {
@@ -1028,7 +1143,8 @@ int LoadRectOfInterest
 			tinyxml2::XMLElement *LabelNameElement = LabelElement->FirstChildElement("name");
 			if (LabelNameElement == nullptr)
 			{
-				AppendLog("Error: Can't find  'annotation' node of  xml file:" + InputXmlFilePath + ".");
+				AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+					"Error: Can't find  'annotation' node of  xml file:" + InputXmlFilePath + ".");
 				return 1;
 			}
 			else
@@ -1059,69 +1175,28 @@ int LoadRectOfInterest
 	}
 	else
 	{
-		AppendLog("Error: Can't find  rect of interest in  xml file:" + InputXmlFilePath + ".");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			"Error: Can't find  rect of interest in  xml file:" + InputXmlFilePath + ".");
 		return 1;
 	}
 }
 
 
 
-int LoadInputImage
+int Raw2GrayImage
 (
-	String InputImagePath,//输入图片的读取路径
+	Mat Raw_InputImage,//输入图片的读取路径
 	Mat & Gray_InputImage
 )
-{
-	if (InputImagePath.empty())
-	{
-		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + "Error:Missing necessary input parameter 'InputImagePath'");
-		return 1;
-	}
-
-	Mat InputImage = imread(
-		InputImagePath,
-		CV_LOAD_IMAGE_UNCHANGED
-	);
-
-
-	if (!InputImage.data)
-	{
-		AppendLog("Error: Can't read image data from '" + InputImagePath + ".");
-		return 1;
-	}
-
-	Rect InputImageRect = { 0, 0, InputImage.rows, InputImage.cols };
-
-	String XmlFilePath = InputImagePath.substr(0, InputImagePath.rfind('.')) + ".xml";
-	Rect RectOfInterest;
-
-	LoadRectOfInterest(XmlFilePath, RectOfInterest);
-
-
-	if ((RectOfInterest & InputImageRect).area() == 0)
-	{
-		AppendLog("Warning: RectOfInterest may not be an proper range and would be ignore."\
-			"The whole image would be processed.");
-		RectOfInterest = InputImageRect;
-	}
-	else
-	{
-		InputImage = InputImage(RectOfInterest);
-	}
-
-	int InputImageHeight = InputImage.rows;
-	int InputImageWidth = InputImage.cols;
-
-
-	//获取图片的通道数
-	int NumInputImageChannel = InputImage.channels();
+{	//获取图片的通道数
+	int NumInputImageChannel = Raw_InputImage.channels();
 
 	//如果图像为3通道彩色图像
 	if (NumInputImageChannel == 3)
 	{
 		//将图片由BGR转换成灰阶图像
 		cvtColor(
-			InputImage,//输入图片矩阵
+			Raw_InputImage,//输入图片矩阵
 			Gray_InputImage,//输出图片矩阵 
 			COLOR_BGR2GRAY//将图片由BGR（OpenCV默认通道格式）转换成灰阶图像
 		);
@@ -1132,7 +1207,7 @@ int LoadInputImage
 	{
 		//将图片由BGRA转换成灰阶图像
 		cvtColor(
-			InputImage,//输入图片矩阵
+			Raw_InputImage,//输入图片矩阵
 			Gray_InputImage,//输出图片矩阵 
 			COLOR_BGRA2GRAY//将图片由BGRA转换成灰阶图像
 		);
@@ -1140,13 +1215,14 @@ int LoadInputImage
 	//如果图像已经为单通道灰阶图像，直接将ResizedImageMat赋给GrayImageMat
 	else if (NumInputImageChannel == 1)
 	{
-		Gray_InputImage = InputImage;
+		Gray_InputImage = Raw_InputImage;
 	}
 
 	//如果通道数不为1,3或4，输出错误码并退出程序
 	else
 	{
-		AppendLog(String("Error: Unkown image channel type: ") + NumInputImageChannel + ".");
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" + 
+			String("Error: Unkown image channel type: ") + NumInputImageChannel + ".");
 		return 1;
 	}
 
@@ -1213,7 +1289,7 @@ int PlateNumberArea2PlateNumber
 	if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberStartRow) == 1)
 	{
 		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberStartRow) == 1 &&
-			PlateNumberStartRow >= 0)
+			PlateNumberStartRow > 0)
 		{
 			PlateNumberStartRow--;
 		}
@@ -1221,25 +1297,25 @@ int PlateNumberArea2PlateNumber
 	else if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberStartRow) == 0)
 	{
 		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberStartRow) == 0 &&
-			PlateNumberStartRow < ProjectX_Binary_PlateNumberAreaGradX.rows)
+			PlateNumberStartRow < ProjectX_Binary_PlateNumberAreaGradX.rows - 1)
 		{
 			PlateNumberStartRow++;
 		}
 
 	}
 
-	if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow) == 1)
+	if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow-1) == 1)
 	{
-		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow) == 1 &&
-			PlateNumberEndRow  < ProjectX_Binary_PlateNumberAreaGradX.rows)
+		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow-1) == 1 &&
+			PlateNumberEndRow-1  < ProjectX_Binary_PlateNumberAreaGradX.rows - 1)
 		{
 			PlateNumberEndRow++;
 		}
 	}
-	else if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow) == 0)
+	else if (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow-1) == 0)
 	{
-		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow) == 0 &&
-			PlateNumberEndRow >= 0)
+		while (*ProjectX_Binary_PlateNumberAreaGradX.ptr<uchar>(PlateNumberEndRow-1) == 0 &&
+			PlateNumberEndRow-1 > 0)
 		{
 			PlateNumberEndRow--;
 		}
@@ -1289,15 +1365,15 @@ int PlateNumberArea2PlateNumber
 	int MatchStartCol, MatchEndCol;
 	int PlateNumberStartCol, PlateNumberEndCol;
 
-	if (ProjectY_Binary_PlateNumberAreaGradX.cols <= EstimatePlateNumberWidth + ElementSize - 1)
+	if (ProjectY_Binary_PlateNumberAreaGradX.cols <= EstimatePlateNumberWidth)
 	{
 		PlateNumberStartCol = 0;
-		PlateNumberEndCol = ProjectY_Binary_PlateNumberAreaGradX.cols;
+		PlateNumberEndCol = ProjectY_Binary_PlateNumberAreaGradX.cols + ElementSize - 1;
 	}
 	else
 	{
 		MatchStartCol = 0;
-		MatchEndCol = int(MatchStartCol + EstimatePlateNumberWidth + ElementSize - 1);
+		MatchEndCol = int(MatchStartCol + EstimatePlateNumberWidth);
 
 		vector <int> NumPlateNumberOne;
 		NumPlateNumberOne.push_back(0);
@@ -1317,11 +1393,12 @@ int PlateNumberArea2PlateNumber
 		}
 		vector <int>::iterator itMaxNumPlateNumberOne = max_element(NumPlateNumberOne.begin(), NumPlateNumberOne.end());
 		PlateNumberStartCol = int(distance(NumPlateNumberOne.begin(), itMaxNumPlateNumberOne));
-		PlateNumberEndCol = int(PlateNumberStartCol + EstimatePlateNumberWidth + ElementSize - 1);
+		PlateNumberEndCol = int(PlateNumberStartCol + EstimatePlateNumberWidth + ElementSize -1 );
 	}
 	if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberStartCol] == 1)
 	{
-		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberStartCol] == 1 && PlateNumberStartCol >= 0)
+		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberStartCol] == 1 &&
+			PlateNumberStartCol > 0)
 		{
 			PlateNumberStartCol--;
 		}
@@ -1329,33 +1406,33 @@ int PlateNumberArea2PlateNumber
 	else if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberStartCol] == 0)
 	{
 		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberStartCol] == 0 &&
-			PlateNumberStartCol < ProjectY_Binary_PlateNumberAreaGradX.cols)
+			PlateNumberStartCol < ProjectY_Binary_PlateNumberAreaGradX.cols - 1)
 		{
 			PlateNumberStartCol++;
 		}
 
 	}
 
-	if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol] == 1)
+	if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol-1] == 1)
 	{
-		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol] == 1 &&
-			PlateNumberEndCol <ProjectY_Binary_PlateNumberAreaGradX.cols)
+		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol-1] == 1 &&
+			PlateNumberEndCol-1 <ProjectY_Binary_PlateNumberAreaGradX.cols-1)
 		{
 			PlateNumberEndCol++;
 		}
 	}
-	else if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol] == 0)
+	else if (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol-1] == 0)
 	{
-		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol] == 0 &&
-			PlateNumberEndCol >= 0)
+		while (ProjectY_Binary_PlateNumberAreaGradX.ptr<uchar>(0)[PlateNumberEndCol-1] == 0 &&
+			PlateNumberEndCol-1 > 0)
 		{
 			PlateNumberEndCol--;
 		}
 
 	}
 
-	PlateNumberStartCol = PlateNumberStartCol + int(EstimatePlateNumberCharWidth / 2);
-	PlateNumberEndCol = PlateNumberEndCol - int(EstimatePlateNumberCharWidth / 2);
+	PlateNumberStartCol = int(PlateNumberStartCol + EstimatePlateNumberCharWidth / 2.0);
+	PlateNumberEndCol = int(PlateNumberEndCol - EstimatePlateNumberCharWidth / 2.0);
 
 	if ((PlateNumberEndCol - PlateNumberStartCol) / EstimatePlateNumberWidth <0.8)
 	{
@@ -1444,22 +1521,58 @@ int PrepareTemplateImage
 {
 	String TemplateImagePath = "TemplateImage\\TemplateImage.png";
 
-	Mat Gray_TemplateImage;
-	LoadInputImage(
-		TemplateImagePath,//输入图片路径
-		Gray_TemplateImage
+	Mat Raw_TemplateImage = imread(TemplateImagePath,
+		CV_LOAD_IMAGE_UNCHANGED
 	);
+
+	if (!Raw_TemplateImage.data)
+	{
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" +
+			"Error: Can't read image data from '" + TemplateImagePath + ".");
+		return 1;
+	}
+
+	Rect RectOfInterest;
+	String XmlFilePath = TemplateImagePath.substr(0, TemplateImagePath.rfind('.')) + ".xml";
+	LoadRectOfInterest(XmlFilePath, RectOfInterest);
+
+	Rect InputImageRect = { 0, 0, Raw_TemplateImage.rows, Raw_TemplateImage.cols };
+
+	if ((RectOfInterest & InputImageRect).area() == 0)
+	{
+		AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" +
+			"Warning: RectOfInterest may not be an proper range and would be ignore."\
+			"The whole image would be processed.");
+		RectOfInterest = InputImageRect;
+	}
+	else
+	{
+		Raw_TemplateImage = Raw_TemplateImage(RectOfInterest);
+	}
+
+
+
+	Mat Gray_TemplateImage;
+
+	Raw2GrayImage(Raw_TemplateImage, Gray_TemplateImage);
+
+	
 	TemplateImageLineRow = { 40,107,190,269,356,439,522,605,683 };
 
+	TemplateImageMeanLineHeight = 0;
+	
 	for (int iLine = 2; iLine < TemplateImageLineRow.size(); iLine++)
 	{
 		TemplateImageMeanLineHeight = TemplateImageMeanLineHeight +
 			TemplateImageLineRow[iLine] - TemplateImageLineRow[iLine - 1];
 	}
-	TemplateImageMeanLineHeight = TemplateImageMeanLineHeight / (TemplateImageLineRow.size() - 1);
+	
+	TemplateImageMeanLineHeight = TemplateImageMeanLineHeight / (TemplateImageLineRow.size() - 2);
 
 	Gray_TemplateImage = Gray_TemplateImage.rowRange(TemplateImageLineRow[0],
-		TemplateImageLineRow.back());
+		TemplateImageLineRow.back() + 1);
+
+	
 	TemplateImageSize.width = Gray_TemplateImage.cols;
 	TemplateImageSize.height = Gray_TemplateImage.rows;
 	Mat TemplateImageGradY;
@@ -1480,11 +1593,14 @@ int PrepareTemplateImage
 
 	TemplateImageTitleRect.x = 193;
 	TemplateImageTitleRect.width = 833 - 193;
-	TemplateImageTitleRect.y = TemplateImageLineRow[0];
+	TemplateImageTitleRect.y = TemplateImageLineRow[0] - TemplateImageLineRow[0];
 	TemplateImageTitleRect.height = TemplateImageLineRow[1] - TemplateImageLineRow[0];
 
 
 	TemplateImagePlateNumberAreaRect = Rect(159, 106, 454 - 159, 228 - 106);
+
+	TemplateImagePlateNumberAreaRect.y = TemplateImagePlateNumberAreaRect.y -
+		TemplateImageLineRow[0];
 
 	TemplateImagePlateNumberSize;
 	TemplateImagePlateNumberSize.width = 175;
@@ -1494,6 +1610,12 @@ int PrepareTemplateImage
 	TemplateImagePlateNumberLineRect.width = 766;
 	TemplateImagePlateNumberLineRect.y = TemplateImageLineRow[0];
 	TemplateImagePlateNumberLineRect.height = TemplateImageLineRow[1] - TemplateImageLineRow[0];
+
+	for (int iLine = int(TemplateImageLineRow.size() - 1); iLine >= 0; iLine--)
+	{
+		TemplateImageLineRow[iLine] = TemplateImageLineRow[iLine] - TemplateImageLineRow[0];
+	}
+
 
 	return 0;
 }
@@ -1527,7 +1649,7 @@ int TitleRect2PlateNumberAreaRect
 
 	InputImagePlateNumberAreaRect.y = PlateNumberLineInfo.StartRow;
 	InputImagePlateNumberAreaRect.width = int(double(TemplateImagePlateNumberAreaRect.width) /
-		double(InputImageSize.width)*double(InputImageSize.width)*InputImageScaleX);
+		double(TemplateImageSize.width)*double(InputImageSize.width)*InputImageScaleX);
 
 	InputImagePlateNumberAreaRect.x = int(InputImageTitleCenterCol -
 		(TemplateImageTitleCenterCol - TemplateImagePlateNumberAreaCenterCol) /
@@ -1621,7 +1743,8 @@ int GetPlateNumberLineRect
 	}
 	if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineStartCol] == 1)
 	{
-		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineStartCol] == 1 && PlateNumberLineStartCol >= 0)
+		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineStartCol] == 1 && 
+			PlateNumberLineStartCol > 0)
 		{
 			PlateNumberLineStartCol--;
 		}
@@ -1629,25 +1752,25 @@ int GetPlateNumberLineRect
 	else if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineStartCol] == 0)
 	{
 		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineStartCol] == 0 &&
-			PlateNumberLineStartCol < ProjectY_Binary_PlateNumberLineGrad.cols)
+			PlateNumberLineStartCol < ProjectY_Binary_PlateNumberLineGrad.cols -1)
 		{
 			PlateNumberLineStartCol++;
 		}
 
 	}
 
-	if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol] == 1)
+	if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol-1] == 1)
 	{
-		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol] == 1 &&
-			PlateNumberLineEndCol < ProjectY_Binary_PlateNumberLineGrad.cols)
+		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol-1] == 1 &&
+			PlateNumberLineEndCol-1 < ProjectY_Binary_PlateNumberLineGrad.cols-1)
 		{
 			PlateNumberLineEndCol++;
 		}
 	}
-	else if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol] == 0)
+	else if (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol-1] == 0)
 	{
-		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol] == 0 &&
-			PlateNumberLineEndCol >= 0)
+		while (ProjectY_Binary_PlateNumberLineGrad.ptr<uchar>(0)[PlateNumberLineEndCol-1] == 0 &&
+			PlateNumberLineEndCol-1 > 0)
 		{
 			PlateNumberLineEndCol--;
 		}
@@ -1748,7 +1871,7 @@ int GetTitleRect
 	}
 	if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleStartCol] == 1)
 	{
-		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleStartCol] == 1 && TitleStartCol >= 0)
+		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleStartCol] == 1 && TitleStartCol > 0)
 		{
 			TitleStartCol--;
 		}
@@ -1756,25 +1879,25 @@ int GetTitleRect
 	else if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleStartCol] == 0)
 	{
 		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleStartCol] == 0 &&
-			TitleStartCol < ProjectY_Binary_TitleLineGrad.cols)
+			TitleStartCol < ProjectY_Binary_TitleLineGrad.cols - 1)
 		{
 			TitleStartCol++;
 		}
 
 	}
 
-	if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol] == 1)
+	if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol-1] == 1)
 	{
-		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol] == 1 &&
-			TitleEndCol < ProjectY_Binary_TitleLineGrad.cols)
+		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol-1] == 1 &&
+			TitleEndCol-1 < ProjectY_Binary_TitleLineGrad.cols - 1)
 		{
 			TitleEndCol++;
 		}
 	}
-	else if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol] == 0)
+	else if (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol-1] == 0)
 	{
-		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol] == 0 &&
-			TitleEndCol >= 0)
+		while (ProjectY_Binary_TitleLineGrad.ptr<uchar>(0)[TitleEndCol-1] == 0 &&
+			TitleEndCol-1 > 0)
 		{
 			TitleEndCol--;
 		}
@@ -1852,6 +1975,8 @@ int  TextLineSegmentation
 
 	vector<int> ClosestTemplateYPeakRow(TemplateImageLineRow.size());
 
+	vector <int> MatchStep;
+
 	for (int iScale = 0; CurrentMatchScale < MaxMatchScale; iScale++)
 	{
 		CurrentMatchScale = MinMatchScale + iScale * MatchScaleStep;
@@ -1859,8 +1984,8 @@ int  TextLineSegmentation
 		IsMatchHeightChange = false;
 		IsPeakChange = false;
 
-		MinPeakGap = ProjectX_Diff_InputGradY.rows * CurrentMatchScale *
-			((TemplateImageLineRow[1] - TemplateImageLineRow[0]) / TemplateImageSize.height);
+		MinPeakGap = InputImageHeight * CurrentMatchScale / 
+			TemplateImageSize.height*(TemplateImageLineRow[1] - TemplateImageLineRow[0]);
 		if (Filter_InputGradYPeak.empty() != true)
 		{
 			Filter_InputGradYPeakTemp = Filter_InputGradYPeak;
@@ -1912,31 +2037,27 @@ int  TextLineSegmentation
 					INTER_LINEAR
 				);
 			}
-			if (IsMatchHeightChange == true)
+
+			for (int iPeak = 0; iPeak < TemplateImageLineRow.size(); iPeak++)
 			{
-				TemplateYPeakRow.clear();
-				for (int iPeak = 0; iPeak < TemplateImageLineRow.size(); iPeak++)
-				{
 
-					TemplateYPeakRow[iPeak] =
-						(TemplateImageLineRow[iPeak] - TemplateImageLineRow.back())*CurrentMatchHeight / TemplateImageSize.height;
-				}
+				TemplateYPeakRow[iPeak] = int((TemplateImageLineRow[iPeak] - TemplateImageLineRow.back()) 
+					/ double(TemplateImageSize.height)*double(CurrentMatchHeight));
 			}
-			bool FlagNextStep;
-			vector <int> MatchStep;
 
-			for (int iStep = (*(Filter_InputGradYPeak.end() - 1)).PeakIndex -
-				(*(Filter_InputGradYPeak.end() - 2)).PeakIndex;
-				iStep < InputImageHeight + (*(Filter_InputGradYPeak.end() - 1)).PeakIndex -
-				(*(Filter_InputGradYPeak.end() - 2)).PeakIndex;
+			bool FlagNextStep;
+			MatchStep.swap(vector <int>());
+
+			for (int iStep = TemplateYPeakRow.back() - TemplateYPeakRow[1];
+				iStep < InputImageHeight  + (TemplateYPeakRow.back() - *(TemplateYPeakRow.end()-2));
 				iStep++)
 			{
 				FlagNextStep = false;
-				for (int iPeak = 0; iPeak < TemplateYPeakRow.size() && !FlagNextStep; iPeak++)
+				for (int iPeak = 0; iPeak < TemplateYPeakRow.size() && FlagNextStep == false; iPeak++)
 				{
 					if (TemplateYPeakRow[iPeak] + iStep >= 0 && TemplateYPeakRow[iPeak] + iStep < InputImageHeight)
 					{
-						for (int jPeak = 0; jPeak < TemplateYPeakRow.size(); jPeak++)
+						for (int jPeak = 0; jPeak < Filter_InputGradYPeak.size(); jPeak++)
 						{
 							if (TemplateYPeakRow[iPeak] + iStep == Filter_InputGradYPeak[jPeak].PeakIndex)
 							{
@@ -1947,32 +2068,40 @@ int  TextLineSegmentation
 						}
 					}
 				}
-				int InputMatchBegin, InputMatchEnd, TemplateMatchBegin, TemplateMatchEnd;
+			}
+			int InputMatchBegin, InputMatchEnd, TemplateMatchBegin, TemplateMatchEnd;
 
-				double CurrentCorrCoef, MaxCorrCoef = 0;
+			double CurrentCorrCoef;
 
-				for (iStep = 0; iStep < MatchStep.size(); iStep++)
+			for (int iStep = 0; iStep < MatchStep.size(); iStep++)
+			{
+				InputMatchBegin = TemplateYPeakRow[0] + MatchStep[iStep] < 0 ?
+					0 : TemplateYPeakRow[0] + MatchStep[iStep];
+				InputMatchEnd = TemplateYPeakRow.back() + MatchStep[iStep] <= InputImageHeight ?
+					TemplateYPeakRow.back() + MatchStep[iStep] : InputImageHeight;
+
+				TemplateMatchBegin = InputMatchBegin - (TemplateYPeakRow[0] + MatchStep[iStep]);
+				TemplateMatchEnd = InputMatchEnd - (TemplateYPeakRow[0] + MatchStep[iStep]);
+
+
+				Mat InputData = Binary_ProjectX_InputGradY.rowRange(InputMatchBegin, InputMatchEnd);
+				Mat TemplateData = TemplateYGradY.rowRange(TemplateMatchBegin, TemplateMatchEnd);
+
+				GetCorrCoef<uchar>(InputData, TemplateData, CurrentCorrCoef);
+
+				if (CurrentCorrCoef > MaxCorrCoef)
 				{
-					InputMatchBegin = TemplateYPeakRow[0] + MatchStep[iStep] < 0 ?
-						0 : TemplateYPeakRow[0] + MatchStep[iStep];
-					InputMatchEnd = TemplateYPeakRow.back() + MatchStep[iStep] <= InputImageHeight ?
-						TemplateYPeakRow.back() + MatchStep[iStep] : InputImageHeight;
-
-					TemplateMatchBegin = InputMatchBegin - (TemplateYPeakRow[0] + MatchStep[iStep]);
-					TemplateMatchEnd = InputMatchEnd - (TemplateYPeakRow[0] + MatchStep[iStep]);
-
-					Mat InputData = Binary_ProjectX_InputGradY.rowRange(InputMatchBegin, InputMatchEnd);
-					Mat TemplateData = TemplateYGradY.rowRange(TemplateMatchBegin, TemplateMatchEnd);
-
-					GetCorrCoef<uchar>(InputData, TemplateData, CurrentCorrCoef);
-
-					if (CurrentCorrCoef < MaxCorrCoef)
+					MaxCorrCoef = CurrentCorrCoef;
+					MatchScaleY = CurrentMatchScale;
+					for (int iPeakRow = 0; iPeakRow < ClosestTemplateYPeakRow.size(); iPeakRow++)
 					{
-						MaxCorrCoef = CurrentCorrCoef;
-						MatchScaleY = CurrentMatchScale;
-						ClosestTemplateYPeakRow = TemplateYPeakRow;
+						ClosestTemplateYPeakRow[iPeakRow] = TemplateYPeakRow[iPeakRow] + MatchStep[iStep] ;
 					}
+					
 				}
+
+
+
 			}
 		}
 	}
@@ -1983,7 +2112,7 @@ int  TextLineSegmentation
 
 	for (int iTextLine = 0; iTextLine < ClosestTemplateYPeakRow.size() - 1; iTextLine++)
 	{
-
+		TextLineInfoTemp.TextLineIndex = iTextLine;
 		if (ClosestTemplateYPeakRow[iTextLine] >= 0 &&
 			ClosestTemplateYPeakRow[iTextLine] < InputImageHeight)
 		{
@@ -2011,9 +2140,22 @@ int  TextLineSegmentation
 		{
 			TextLineInfoTemp.EndRow = InputImageHeight;
 		}
+		if (TextLineInfoTemp.EndRow > TextLineInfoTemp.StartRow)
+		{
+			TextLineInfoTemp.TextLineHeight = ClosestTemplateYPeakRow[iTextLine + 1] -
+				ClosestTemplateYPeakRow[iTextLine];
+			InputImageTextLineInfo.push_back(TextLineInfoTemp);
+		}
+	}
+	if (ClosestTemplateYPeakRow.back() >= 0 &&
+		ClosestTemplateYPeakRow.back() < InputImageHeight)
+	{
+		TextLineInfoTemp.StartRow = ClosestTemplateYPeakRow.back();
+		TextLineInfoTemp.EndRow = ClosestTemplateYPeakRow.back();
+		TextLineInfoTemp.TextLineIndex = int(ClosestTemplateYPeakRow.size());
+		TextLineInfoTemp.TextLineHeight = 0;
 		InputImageTextLineInfo.push_back(TextLineInfoTemp);
 	}
-
 	return 0;
 
 
