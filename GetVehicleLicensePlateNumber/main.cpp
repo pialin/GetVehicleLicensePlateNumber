@@ -267,7 +267,7 @@ int main(int ArgumentCount, char** ArgumentVector)
 	);
 
 
-	for (int iInputImagePath = 0; iInputImagePath < InputImagePathList.size(); iInputImagePath++)
+	for (int iInputImagePath = 159; iInputImagePath < InputImagePathList.size(); iInputImagePath++)
 	{
 
 		Mat Raw_InputImage = imread(
@@ -278,8 +278,9 @@ int main(int ArgumentCount, char** ArgumentVector)
 		if (!Raw_InputImage.data)
 		{
 			AppendLog(String(__FUNCTION__) + "(" + to_string(__LINE__) + ")" +
-				"Error: Can't read image data from '" + InputImagePathList[iInputImagePath] + ".");
-			return 1;
+				"Error: Can't read image data from '" + InputImagePathList[iInputImagePath] + "." +
+			"This item would be ignore.");
+			continue;
 		}
 
 		Rect RectOfInterest;
